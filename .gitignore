@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+.eslintcache
+
+# Logs
+*.log
+
+# IDEs & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# RF / Project Data (placeholder extension blocks)
+*.iq
+*.wav
+data/
+datasets/raw/
+datasets/processed/
+datasets/synthetic/
+models/*.pt
+models/*.onnx
+models/*.pkl
