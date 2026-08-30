@@ -11,6 +11,11 @@ env/
 .coverage
 htmlcov/
 
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
 # Node
 node_modules/
 dist/
@@ -32,9 +37,9 @@ Thumbs.db
 *.iq
 *.wav
 data/
-datasets/raw/
-datasets/processed/
-datasets/synthetic/
+datasets/raw/*
+datasets/processed/*
+datasets/synthetic/*
 models/*.pt
 models/*.onnx
 models/*.pkl
