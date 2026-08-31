@@ -438,19 +438,190 @@ This demonstrates that amplitude variations and short-lag correlation statistics
 
 ---
 
+## Milestone M5: Raw IQ CNN Baseline
+
+The purpose of M5 is to build a baseline 1D Convolutional Neural Network (CNN) in PyTorch to perform modulation classification directly from raw IQ waveform samples of shape `[2, 128]`, and compare its performance against the classical M4 baseline.
+
+### 1D CNN Architecture
+- **Input Layer**: `[batch, 2, 128]`
+- **Block 1**: `Conv1d(2 -> 64, k=7, p=3)`, `BatchNorm1d`, `ReLU`, `MaxPool1d(2)` (128 -> 64)
+- **Block 2**: `Conv1d(64 -> 128, k=5, p=2)`, `BatchNorm1d`, `ReLU`, `MaxPool1d(2)` (64 -> 32)
+- **Block 3**: `Conv1d(128 -> 256, k=3, p=1)`, `BatchNorm1d`, `ReLU`
+- **Global Pooling**: Global Average Pooling (GAP) `mean(dim=-1)` resulting in `[batch, 256]`
+- **Fully Connected Head**: `Linear(256 -> 128)`, `ReLU`, `Dropout(0.3)`, `Linear(128 -> 11)`
+
+### Preprocessing & Normalization
+The training RMS scaling factor is dynamically computed from training split samples only:
+$$\text{rms}_{\text{train}} = \sqrt{E[x_{\text{train}}^2]} \approx 0.006048427$$
+Input signals are normalized as $x_{\text{normalized}} = x / \text{rms}_{\text{train}}$ ensuring the training set RMS is exactly 1.0. This factor is saved in the model checkpoint metadata and loaded for inference.
+
+### Model Training & Performance
+- **Optimizer**: Adam (learning rate = `1e-3`, batch size = `128`)
+- **Loss Function**: Multiclass Cross Entropy Loss
+- **Early Stopping**: Epoch 13 (patience of 5 epochs based on Validation Macro F1). Best epoch: **Epoch 8**.
+- **Best Validation Macro F1**: `0.5900`
+- **Saved Model**: Serialized at `models/m5_iq_cnn.pt` with scaling metadata.
+
+### Final Untouched Test Set Evaluation
+- **Accuracy**: `0.5668`
+- **Macro F1**: `0.5844`
+- **Weighted F1**: `0.5844`
+- **Macro Precision**: `0.6811`
+- **Macro Recall**: `0.5668`
+
+#### M4 vs M5 Baseline Comparison
+Both models were evaluated on the same test dataset split:
+| Metric | M4 HGB (36 DSP Features) | M5 1D CNN (Raw IQ) | Difference |
+|---|---|---|---|
+| **Accuracy** | 0.5494 | **0.5668** | **+0.0174** |
+| **Macro F1** | 0.5656 | **0.5844** | **+0.0188** |
+
+**Conclusion**: The learned representation from raw IQ waveforms outperforms the handcrafted classical baseline by **1.88%** Macro F1 points.
+
+---
+
+## Milestone M6.1: Synthetic Evaluation Dataset
+
+The purpose of M6.1 is to build a controlled, deterministic synthetic evaluation dataset to study the robustness of the trained M5 CNN model under isolated, parameterized channel impairments. 
+
+> [!NOTE]
+> This milestone generates an evaluation dataset and does NOT alter the M5 checkpoint or use synthetic data for training.
+
+### Supported Modulation Classes
+Reusing the M2 generator, the evaluation dataset supports the **5 digital modulation classes**:
+- `BPSK`, `QPSK`, `8PSK`, `QAM16`, `QAM64`
+The other 6 modulation classes (`AM-DSB`, `AM-SSB`, `CPFSK`, `GFSK`, `PAM4`, `WBFM`) are explicitly logged as unsupported and omitted from generation.
+
+### Generation Parameters & Length
+Each generated waveform has shape `[2, 128]`, obtained by configuring:
+- `num_symbols = 8`
+- `filter_span_symbols = 8`
+- `samples_per_symbol = 8`
+Output length $= (8 + 8) \times 8 = 128$ samples.
+
+### Isolated Impairment Sweeps
+We perform 7 isolated experiments where exactly one impairment parameter is swept while the others are held constant (at 0 or nominal value) at a high SNR of 18 dB (except for the AWGN sweep):
+1. **AWGN**: SNR $\in \{-20, -10, 0, 10, 18\}$ dB
+2. **Frequency Offset**: $\Delta f \in \{0.0, 100.0, 500.0, 2000.0, 10000.0\}$ Hz
+3. **Phase Offset**: $\theta \in \{0.0, \pi/8, \pi/4, \pi/2, \pi\}$ rad
+4. **IQ Amplitude Imbalance**: $A \in \{0.0, 0.05, 0.1, 0.2, 0.3\}$
+5. **IQ Phase Imbalance**: $\phi \in \{0.0, 0.05, 0.1, 0.2, 0.3\}$ rad
+6. **DC Offset**: $I_{dc} = Q_{dc} \in \{0.0, 0.05, 0.1, 0.2, 0.3\}$
+7. **Timing Offset**: $\tau \in \{0.0, 0.1, 0.2, 0.3, 0.4, 0.5\}$ samples
+
+### Dataset Format & Output
+- **Total Generated Examples**: 18,000 samples (36 conditions $\times$ 5 modulations $\times$ 100 examples per combination).
+- **Dataset File**: [`datasets/synthetic/synthetic_evaluation_dataset.npz`](file:///c:/Shambhavi/VS%20Code/Sigma/datasets/synthetic/synthetic_evaluation_dataset.npz) containing `X` (`[18000, 2, 128]`) and `y` (`[18000]`).
+- **Metadata File**: [`datasets/synthetic/synthetic_evaluation_metadata.json`](file:///c:/Shambhavi/VS%20Code/Sigma/datasets/synthetic/synthetic_evaluation_metadata.json) containing Ground Truth configurations, seeds, and sweep parameters for each sample.
+- **RNG Determinism**: Seeded generation (`base_seed = 42000`) guarantees exact replication of waveforms.
+
+---
+
+## Milestone M6.2: Synthetic-to-Real Cross-Domain Evaluation
+
+The purpose of M6.2 is to evaluate our frozen M5 Raw IQ CNN model (trained on real RadioML 2016.10A data) against the synthetic evaluation dataset generated in M6.1. This is a cross-domain evaluation experiment to determine how well the model transfers from real-world data to parameterized, simulated data.
+
+> [!IMPORTANT]
+> M6.2 is evaluation ONLY. The CNN baseline model remains fully frozen, with weights and preprocessing scaling parameters unmodified.
+
+### 5-Class Evaluation Limitation
+Because the synthetic dataset only contains BPSK, QPSK, 8PSK, QAM16, and QAM64 modulations, accuracy and macro averages (Precision, Recall, F1) are calculated specifically over these **5 supported classes** using Scikit-Learn `labels` parameters. The other 6 modulation classes are treated as unsupported.
+
+### Evaluation Findings & Domain Gap Analysis
+* **Overall Accuracy on Synthetic Data:** **0.2218**
+* **Overall Macro F1 on Synthetic Data:** **0.1244** (compared to **0.5844** on Real RadioML test set).
+
+This severe degradation reveals a major **synthetic-to-real domain gap (Outcome B)**. The CNN is highly sensitive to waveform structures (such as pulse shaping filter spans, exact power scaling, impairment profiles, or sample rates) that differ between the real RadioML dataset and our synthetic simulator. 
+
+* **Per-Class Recall Analysis:**
+  - `QPSK` achieves high recall of **93.56%** (acting as a majority predicted class).
+  - `BPSK` and `8PSK` recall values drop to near-zero, showing they are not correctly recognized under simulated conditions.
+
+### SNR and Impairment Robustness Reports
+Under AWGN noise conditions, performance degrades uniformly. Non-AWGN impairments (such as DC offsets, timing delays, and frequency offsets) cause additional relative degradation compared to the clean baseline.
+* Consolidated robustness details are saved in [`impairment_robustness.csv`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/impairment_robustness.csv) and [`impairment_robustness.json`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/impairment_robustness.json).
+* Cross-domain summary comparisons are saved in [`cross_domain_comparison.json`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/cross_domain_comparison.json).
+* Performance and confusion matrix plots are stored under [`results/ml/m6/`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/).
+
+---
+
+## Milestone M6.3: Real-vs-Synthetic Domain Gap Analysis
+
+The purpose of M6.3 is to identify the root causes of the synthetic-to-real domain gap. We matched exactly 100 samples per class × SNR level (across 5 supported classes and 5 SNR levels, total 2,500 real and 2,500 synthetic samples) and performed statistical comparisons.
+
+> [!IMPORTANT]
+> M6.3 is diagnostic ONLY. No modifications were made to the M2 generator, M3 features, or M5 CNN weights.
+
+### Key Measured Domain Differences
+
+1. **Amplitude Scaling / Power Normalization Mismatch (Primary Cause)**:
+   - **Real Raw RMS:** `0.006056`
+   - **Synthetic Raw RMS:** `0.852382`
+   - **Normalized Real RMS (CNN Input):** `1.001312`
+   - **Normalized Synthetic RMS (CNN Input):** **`140.926178`**
+
+   **Observed Fact:** The synthetic samples are scaled to have a normalized RMS that is **140 times larger** than the real training samples. When presented to the CNN, this scaling mismatch saturates the activation functions and Batch Normalization layers, causing classification collapse.
+   - **Statistical Verification:** The Decision Tree domain classifier separates the real and synthetic domains with **100% accuracy** using ONLY the `amplitude_mean` feature.
+
+2. **Phase Difference kurtosis (Noise/Channel Mismatch)**:
+   - **Real Mean Kurtosis:** `5.7769`
+   - **Synthetic Mean Kurtosis:** `-0.1826` (Cohen's $d = -0.9711$)
+   
+   **Observed Fact:** Real signals have heavy-tailed phase differences caused by timing jitter and phase noise spikes, whereas synthetic signals have a flat, standard Gaussian phase difference distribution.
+
+3. **Carrier Offset & Autocorrelation Biases**:
+   - The imaginary components of autocorrelation features (`autocorr_lag_4_imag`, `autocorr_lag_2_imag`, `autocorr_lag_1_imag`) show a distinct non-zero bias in real signals compared to near-zero imaginary values in clean synthetic signals. This suggests a persistent frequency/phase bias or timing drift in the real acquisition setup that the synthetic simulator does not model.
+
+### Outputs & Visualizations
+* Consolidated feature ranking: [`domain_feature_comparison.csv`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/domain_analysis/domain_feature_comparison.csv)
+* Class-conditional statistics: [`domain_gap_by_class.csv`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/domain_analysis/domain_gap_by_class.csv)
+* Raw IQ statistics summary: [`raw_iq_statistics.csv`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/domain_analysis/raw_iq_statistics.csv)
+* Global separability plot: [`pca_domain_separability.png`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/domain_analysis/pca_domain_separability.png)
+* Feature distribution histograms: [`domain_gap_features.png`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/domain_analysis/domain_gap_features.png)
+* Average PSD curves: [`spectral_comparison.png`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/domain_analysis/spectral_comparison.png)
+* Visual comparisons (I/Q waveforms, envelopes, constellations): stored under [`results/ml/m6/domain_visuals/`](file:///c:/Shambhavi/VS%20Code/Sigma/results/ml/m6/domain_visuals/)
+
+---
+
 ## How to Run
 
 ### 1. Dataset Inspection Utility
 To print dataset properties and verify split statistics, run the inspection script from the root of the project:
 ```powershell
-# Run using the backend virtual environment python
 .\backend\venv\Scripts\python.exe -m ml.dataset.inspect_dataset
 ```
 
-### 2. Running Unit & Integration Tests
-To run all tests (including M1 dataset loading stability and M2.1 synthetic signal generator foundation tests), execute pytest:
+### 2. M5 CNN Training Pipeline
+To run CNN baseline training, validation model checkpointing, history plots, and test set evaluations:
 ```powershell
-.\backend\venv\Scripts\python.exe -m pytest tests/ml/ -v
+$env:PYTHONPATH="."
+.\backend\venv\Scripts\python.exe ml/cnn_model/train.py
 ```
 
+### 3. M6.1 Synthetic Generator Diagnostics
+To run the synthetic evaluation dataset generation, seed verification, and representative waveforms plotting:
+```powershell
+$env:PYTHONPATH="."
+.\backend\venv\Scripts\python.exe ml/synthetic/inspect_synthetic.py
+```
 
+### 4. M6.2 Synthetic Cross-Domain Evaluation
+To execute model loading parameter hash checks, run inference on synthetic waveforms, and generate impairment robustness metrics/confusion matrices:
+```powershell
+$env:PYTHONPATH="."
+.\backend\venv\Scripts\python.exe ml/synthetic/evaluate.py
+```
+
+### 5. M6.3 Real-vs-Synthetic Domain Gap Analysis
+To perform matched real vs synthetic comparisons, compute Cohen's d values, PCA projections, PSDs, and train a diagnostic domain classifier:
+```powershell
+$env:PYTHONPATH="."
+.\backend\venv\Scripts\python.exe ml/synthetic/domain_analysis.py
+```
+
+### 6. Running Unit & Integration Tests
+To run all tests (including dataset loaders, M2 generator components, M3 extractor math, M4 baseline models, M5 CNN baseline tests, M6.1 synthetic tests, M6.2 cross-domain tests, and M6.3 domain analysis tests):
+```powershell
+$env:PYTHONPATH="."
+.\backend\venv\Scripts\pytest
+```

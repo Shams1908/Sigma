@@ -137,6 +137,17 @@ def generate_modulated_signal(
     else:
         waveform = complex_symbols
         
+    # 2b. Apply channel filter if configured (new M6.4.2 component)
+    if getattr(config, "channel_taps", None) is not None:
+        waveform = np.convolve(waveform, config.channel_taps, mode='same')
+        
+    # 2c. Apply phase noise if configured (new M6.4.2 component)
+    if getattr(config, "phase_noise_std", None) is not None and config.phase_noise_std > 0:
+        noise_rng = rng if rng is not None else np.random.default_rng(config.random_seed)
+        phase_steps = noise_rng.normal(0.0, config.phase_noise_std, size=len(waveform))
+        phase_drift = np.cumsum(phase_steps)
+        waveform = waveform * np.exp(1j * phase_drift)
+
     # 3. Apply AWGN channel if configured (after pulse shaping)
     if config.snr is not None:
         from ml.generators.channel.awgn import AWGNChannel
@@ -167,7 +178,9 @@ def generate_modulated_signal(
         dc_offset_i=config.dc_offset_i,
         dc_offset_q=config.dc_offset_q,
         iq_amplitude_imbalance=config.iq_amplitude_imbalance,
-        iq_phase_imbalance=config.iq_phase_imbalance
+        iq_phase_imbalance=config.iq_phase_imbalance,
+        phase_noise_std=getattr(config, "phase_noise_std", None),
+        channel_taps=list(config.channel_taps) if getattr(config, "channel_taps", None) is not None else None
     )
     
     return GeneratedSignal(samples=iq_samples, metadata=metadata)

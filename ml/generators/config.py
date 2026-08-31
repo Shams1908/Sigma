@@ -26,6 +26,8 @@ class GeneratorConfig:
     dc_offset_q: Optional[float] = None
     iq_amplitude_imbalance: Optional[float] = None
     iq_phase_imbalance: Optional[float] = None
+    phase_noise_std: Optional[float] = None
+    channel_taps: Optional[Union[list, np.ndarray]] = None
 
     def __post_init__(self):
         # Normalize modulation input strings to standard M1 labels (one-way compatibility mapping)

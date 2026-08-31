@@ -117,3 +117,17 @@ def validate_config(config: Any) -> None:
             raise TypeError(f"iq_phase_imbalance must be numeric, got {type(config.iq_phase_imbalance)}")
         if not np.isfinite(config.iq_phase_imbalance):
             raise ValueError(f"iq_phase_imbalance must be finite, got {config.iq_phase_imbalance}")
+
+    if getattr(config, "phase_noise_std", None) is not None:
+        if not isinstance(config.phase_noise_std, (int, float, np.number)):
+            raise TypeError(f"phase_noise_std must be numeric, got {type(config.phase_noise_std)}")
+        if not np.isfinite(config.phase_noise_std):
+            raise ValueError(f"phase_noise_std must be finite, got {config.phase_noise_std}")
+        if config.phase_noise_std < 0.0:
+            raise ValueError(f"phase_noise_std must be non-negative, got {config.phase_noise_std}")
+
+    if getattr(config, "channel_taps", None) is not None:
+        if not isinstance(config.channel_taps, (list, np.ndarray)):
+            raise TypeError(f"channel_taps must be a list or numpy array, got {type(config.channel_taps)}")
+        if len(config.channel_taps) == 0:
+            raise ValueError("channel_taps must be a non-empty list or array")

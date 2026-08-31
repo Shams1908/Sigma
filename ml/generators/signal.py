@@ -25,6 +25,8 @@ class SyntheticGroundTruth:
     dc_offset_q: Optional[float] = None
     iq_amplitude_imbalance: Optional[float] = None
     iq_phase_imbalance: Optional[float] = None
+    phase_noise_std: Optional[float] = None
+    channel_taps: Optional[list] = None
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,250 @@
+[
+    {
+        "Impairment": "frequency_offset",
+        "Parameter value": 0.0,
+        "Accuracy": 0.236,
+        "Macro F1": 0.13641090361976657,
+        "Delta Macro F1": 0.00758915262098972,
+        "Support": 500
+    },
+    {
+        "Impairment": "frequency_offset",
+        "Parameter value": 100.0,
+        "Accuracy": 0.226,
+        "Macro F1": 0.12381790074097768,
+        "Delta Macro F1": -0.005003850257799175,
+        "Support": 500
+    },
+    {
+        "Impairment": "frequency_offset",
+        "Parameter value": 500.0,
+        "Accuracy": 0.228,
+        "Macro F1": 0.12707215376125117,
+        "Delta Macro F1": -0.0017495972375256852,
+        "Support": 500
+    },
+    {
+        "Impairment": "frequency_offset",
+        "Parameter value": 2000.0,
+        "Accuracy": 0.17,
+        "Macro F1": 0.10621208898874282,
+        "Delta Macro F1": -0.022609662010034032,
+        "Support": 500
+    },
+    {
+        "Impairment": "frequency_offset",
+        "Parameter value": 10000.0,
+        "Accuracy": 0.154,
+        "Macro F1": 0.09750488447133629,
+        "Delta Macro F1": -0.03131686652744056,
+        "Support": 500
+    },
+    {
+        "Impairment": "phase_offset",
+        "Parameter value": 0.0,
+        "Accuracy": 0.23,
+        "Macro F1": 0.13191412539693026,
+        "Delta Macro F1": 0.003092374398153408,
+        "Support": 500
+    },
+    {
+        "Impairment": "phase_offset",
+        "Parameter value": 0.39269908169872414,
+        "Accuracy": 0.232,
+        "Macro F1": 0.12940203235527273,
+        "Delta Macro F1": 0.0005802813564958764,
+        "Support": 500
+    },
+    {
+        "Impairment": "phase_offset",
+        "Parameter value": 0.7853981633974483,
+        "Accuracy": 0.18,
+        "Macro F1": 0.12679058781371957,
+        "Delta Macro F1": -0.0020311631850572776,
+        "Support": 500
+    },
+    {
+        "Impairment": "phase_offset",
+        "Parameter value": 1.5707963267948966,
+        "Accuracy": 0.236,
+        "Macro F1": 0.14099745216024287,
+        "Delta Macro F1": 0.012175701161466018,
+        "Support": 500
+    },
+    {
+        "Impairment": "phase_offset",
+        "Parameter value": 3.141592653589793,
+        "Accuracy": 0.246,
+        "Macro F1": 0.1465765049058605,
+        "Delta Macro F1": 0.017754753907083642,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_amplitude_imbalance",
+        "Parameter value": 0.0,
+        "Accuracy": 0.24,
+        "Macro F1": 0.14509755054669843,
+        "Delta Macro F1": 0.016275799547921577,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_amplitude_imbalance",
+        "Parameter value": 0.05,
+        "Accuracy": 0.236,
+        "Macro F1": 0.14244021249792874,
+        "Delta Macro F1": 0.013618461499151885,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_amplitude_imbalance",
+        "Parameter value": 0.1,
+        "Accuracy": 0.242,
+        "Macro F1": 0.1441212586500863,
+        "Delta Macro F1": 0.01529950765130944,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_amplitude_imbalance",
+        "Parameter value": 0.2,
+        "Accuracy": 0.232,
+        "Macro F1": 0.13475916716095573,
+        "Delta Macro F1": 0.005937416162178882,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_amplitude_imbalance",
+        "Parameter value": 0.3,
+        "Accuracy": 0.224,
+        "Macro F1": 0.1367801747192013,
+        "Delta Macro F1": 0.007958423720424435,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_phase_imbalance",
+        "Parameter value": 0.0,
+        "Accuracy": 0.236,
+        "Macro F1": 0.1415214022417814,
+        "Delta Macro F1": 0.01269965124300454,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_phase_imbalance",
+        "Parameter value": 0.05,
+        "Accuracy": 0.226,
+        "Macro F1": 0.1283697953422724,
+        "Delta Macro F1": -0.00045195565650443803,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_phase_imbalance",
+        "Parameter value": 0.1,
+        "Accuracy": 0.218,
+        "Macro F1": 0.12116471712300189,
+        "Delta Macro F1": -0.00765703387577496,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_phase_imbalance",
+        "Parameter value": 0.2,
+        "Accuracy": 0.24,
+        "Macro F1": 0.146020586343167,
+        "Delta Macro F1": 0.01719883534439015,
+        "Support": 500
+    },
+    {
+        "Impairment": "iq_phase_imbalance",
+        "Parameter value": 0.3,
+        "Accuracy": 0.22,
+        "Macro F1": 0.1258382665765216,
+        "Delta Macro F1": -0.0029834844222552392,
+        "Support": 500
+    },
+    {
+        "Impairment": "dc_offset",
+        "Parameter value": 0.0,
+        "Accuracy": 0.248,
+        "Macro F1": 0.1522836879432624,
+        "Delta Macro F1": 0.023461936944485562,
+        "Support": 500
+    },
+    {
+        "Impairment": "dc_offset",
+        "Parameter value": 0.05,
+        "Accuracy": 0.206,
+        "Macro F1": 0.08772206869324911,
+        "Delta Macro F1": -0.04109968230552774,
+        "Support": 500
+    },
+    {
+        "Impairment": "dc_offset",
+        "Parameter value": 0.1,
+        "Accuracy": 0.2,
+        "Macro F1": 0.06711409395973154,
+        "Delta Macro F1": -0.06170765703904531,
+        "Support": 500
+    },
+    {
+        "Impairment": "dc_offset",
+        "Parameter value": 0.2,
+        "Accuracy": 0.2,
+        "Macro F1": 0.06666666666666667,
+        "Delta Macro F1": -0.062155084332110186,
+        "Support": 500
+    },
+    {
+        "Impairment": "dc_offset",
+        "Parameter value": 0.3,
+        "Accuracy": 0.2,
+        "Macro F1": 0.0667779632721202,
+        "Delta Macro F1": -0.062043787726656655,
+        "Support": 500
+    },
+    {
+        "Impairment": "timing_offset",
+        "Parameter value": 0.0,
+        "Accuracy": 0.23,
+        "Macro F1": 0.13436195456801245,
+        "Delta Macro F1": 0.005540203569235597,
+        "Support": 500
+    },
+    {
+        "Impairment": "timing_offset",
+        "Parameter value": 0.1,
+        "Accuracy": 0.246,
+        "Macro F1": 0.14541676287231586,
+        "Delta Macro F1": 0.016595011873539012,
+        "Support": 500
+    },
+    {
+        "Impairment": "timing_offset",
+        "Parameter value": 0.2,
+        "Accuracy": 0.236,
+        "Macro F1": 0.13655487438394037,
+        "Delta Macro F1": 0.007733123385163521,
+        "Support": 500
+    },
+    {
+        "Impairment": "timing_offset",
+        "Parameter value": 0.3,
+        "Accuracy": 0.236,
+        "Macro F1": 0.1408117381560389,
+        "Delta Macro F1": 0.011989987157262044,
+        "Support": 500
+    },
+    {
+        "Impairment": "timing_offset",
+        "Parameter value": 0.4,
+        "Accuracy": 0.252,
+        "Macro F1": 0.15740684662106894,
+        "Delta Macro F1": 0.028585095622292084,
+        "Support": 500
+    },
+    {
+        "Impairment": "timing_offset",
+        "Parameter value": 0.5,
+        "Accuracy": 0.242,
+        "Macro F1": 0.14812643118587837,
+        "Delta Macro F1": 0.01930468018710152,
+        "Support": 500
+    }
+]

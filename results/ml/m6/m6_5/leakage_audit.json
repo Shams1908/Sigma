@@ -1,0 +1,12 @@
+{
+    "train_test_overlap": false,
+    "validation_test_overlap": false,
+    "synthetic_derived_from_real_test": false,
+    "test_derived_normalization": false,
+    "test_derived_hyperparameters": false,
+    "test_derived_checkpoint_selection": false,
+    "test_derived_synthetic_generation_parameters": false,
+    "target_labels_in_input": false,
+    "snr_metadata_in_input": false,
+    "status": "PASSED"
+}
