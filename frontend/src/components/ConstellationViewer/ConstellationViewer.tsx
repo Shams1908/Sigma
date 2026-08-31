@@ -8,7 +8,7 @@ type ConstellationViewerProps = {
   style?: CSSProperties;
 };
 
-const PLOT_PAD = 22;
+const PLOT_PAD = 24;
 const DOT_R = 2;
 
 function maxAbsIQ(points: ConstellationPoint[]): number {
@@ -28,121 +28,148 @@ export function ConstellationViewer({
   style,
 }: ConstellationViewerProps) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const [side, setSide] = useState(0);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host) return;
 
-    const update = () => {
-      const w = host.clientWidth;
-      const h = host.clientHeight;
-      setSide(Math.max(0, Math.floor(Math.min(w, h))));
-    };
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      setDimensions({
+        width: Math.floor(width),
+        height: Math.floor(height),
+      });
+    });
 
-    update();
-    const observer = new ResizeObserver(update);
     observer.observe(host);
     return () => observer.disconnect();
   }, []);
 
-  const chart = useMemo(() => {
-    if (side < 48 || constellation.length === 0) return null;
+  const side = Math.max(0, Math.min(dimensions.width, dimensions.height));
 
-    const extent = Math.max(maxAbsIQ(constellation) * 1.25, 0.5);
+  const chart = useMemo(() => {
+    if (side < 48) return null;
+
+    const maxVal = maxAbsIQ(constellation);
+    const extent = Math.max(maxVal * 1.2, 1.0);
     const mid = side / 2;
-    const radius = (side - PLOT_PAD * 2) / 2;
-    const toX = (i: number) => mid + (i / extent) * radius;
-    const toY = (q: number) => mid - (q / extent) * radius;
-    const ox = toX(0);
-    const oy = toY(0);
+    const plotRadius = (side - PLOT_PAD * 2) / 2;
+
+    const toX = (i: number) => mid + (i / extent) * plotRadius;
+    const toY = (q: number) => mid - (q / extent) * plotRadius;
+
+    const ox = mid;
+    const oy = mid;
 
     const dots = constellation.map((p, index) => {
       const x = toX(p.i);
       const y = toY(p.q);
       return {
-        key: `${index}-${p.i}-${p.q}`,
+        key: `${index}-${p.i.toFixed(4)}-${p.q.toFixed(4)}`,
+        x,
+        y,
         dx: x - ox,
         dy: y - oy,
-        delay: (index % 25) * 12,
+        delay: Math.min((index % 25) * 10, 200),
       };
     });
 
     return { ox, oy, dots, extent };
   }, [side, constellation]);
 
-  const animKey =
-    constellation.length === 0
-      ? 'empty'
-      : `${constellation.length}:${constellation[0].i}:${constellation[0].q}`;
+  const animKey = useMemo(() => {
+    if (constellation.length === 0) return 'empty';
+    return `${constellation.length}-${constellation[0].i.toFixed(3)}-${constellation[0].q.toFixed(3)}`;
+  }, [constellation]);
 
   return (
     <section
-      className={`relative min-h-0 border border-grid bg-panel ${className}`}
+      className={`relative flex min-h-0 flex-col border border-grid bg-panel ${className}`}
       style={style}
     >
-      <h2 className="absolute left-3 top-2 z-10 font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-muted">
-        CONSTELLATION
-      </h2>
+      <header className="flex shrink-0 items-center justify-between px-3 pt-2.5 pb-1">
+        <h2 className="font-sans text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">
+          CONSTELLATION
+        </h2>
+        {constellation.length > 0 && (
+          <span className="font-mono text-[9px] tracking-wider text-muted">
+            {constellation.length} PTS
+          </span>
+        )}
+      </header>
 
-      <div ref={hostRef} className="absolute inset-0 flex min-h-0 items-center justify-center pt-7">
-        {chart ? (
+      <div
+        ref={hostRef}
+        className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2"
+      >
+        {side >= 48 && (
           <svg
             key={animKey}
             width={side}
             height={side}
             viewBox={`0 0 ${side} ${side}`}
-            className="block aspect-square"
+            className="block aspect-square select-none"
             role="img"
-            aria-label="I Q constellation scatter plot"
+            aria-label="I/Q Constellation scatter plot"
           >
+            {/* Minimal Quadrant Crosshair */}
             <line
               x1={PLOT_PAD}
-              y1={chart.oy}
+              y1={chart?.oy ?? side / 2}
               x2={side - PLOT_PAD}
-              y2={chart.oy}
+              y2={chart?.oy ?? side / 2}
               stroke="var(--color-border)"
               strokeWidth={1}
               shapeRendering="crispEdges"
             />
             <line
-              x1={chart.ox}
+              x1={chart?.ox ?? side / 2}
               y1={PLOT_PAD}
-              x2={chart.ox}
+              x2={chart?.ox ?? side / 2}
               y2={side - PLOT_PAD}
               stroke="var(--color-border)"
               strokeWidth={1}
               shapeRendering="crispEdges"
             />
 
+            {/* Monospace I and Q Axis Labels */}
             <text
-              x={side - PLOT_PAD + 2}
-              y={chart.oy}
+              x={side - PLOT_PAD + 5}
+              y={(chart?.oy ?? side / 2) + 3}
               dominantBaseline="middle"
+              textAnchor="start"
               fill="var(--color-text-muted)"
+              className="select-none font-mono text-[10px]"
               fontFamily="var(--font-mono)"
-              fontSize={10}
+              fontSize="10"
             >
               I
             </text>
+
             <text
-              x={chart.ox}
-              y={PLOT_PAD - 6}
+              x={chart?.ox ?? side / 2}
+              y={PLOT_PAD - 8}
+              dominantBaseline="auto"
               textAnchor="middle"
               fill="var(--color-text-muted)"
+              className="select-none font-mono text-[10px]"
               fontFamily="var(--font-mono)"
-              fontSize={10}
+              fontSize="10"
             >
               Q
             </text>
 
-            {chart.dots.map((dot) => (
+            {/* Constellation Scatter Points */}
+            {chart?.dots.map((dot) => (
               <circle
                 key={dot.key}
-                className="constellation-dot"
-                cx={chart.ox}
-                cy={chart.oy}
+                cx={dot.x}
+                cy={dot.y}
                 r={DOT_R}
+                className="constellation-dot"
                 stroke="none"
                 style={
                   {
@@ -154,8 +181,9 @@ export function ConstellationViewer({
               />
             ))}
           </svg>
-        ) : null}
+        )}
       </div>
     </section>
   );
 }
+

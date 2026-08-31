@@ -111,7 +111,7 @@ export function WaterfallViewer({
   const tickRef = useRef(0);
   const paintRef = useRef<() => void>(() => {});
 
-  paintRef.current = () => {
+  const paint = () => {
     const canvas = canvasRef.current;
     const host = hostRef.current;
     const rows = rowsRef.current;
@@ -169,11 +169,15 @@ export function WaterfallViewer({
   };
 
   useLayoutEffect(() => {
+    paintRef.current = paint;
+  });
+
+  useLayoutEffect(() => {
     sourceRef.current = waterfall;
     rowsRef.current = displayOrder(waterfall);
     scaleRef.current = scaleFrom(waterfall);
     tickRef.current = 0;
-    paintRef.current();
+    paint();
   }, [waterfall]);
 
   useLayoutEffect(() => {
@@ -181,10 +185,10 @@ export function WaterfallViewer({
     if (!host) return;
 
     const observer = new ResizeObserver(() => {
-      paintRef.current();
+      paint();
     });
     observer.observe(host);
-    paintRef.current();
+    paint();
     return () => observer.disconnect();
   }, [waterfall]);
 
@@ -207,7 +211,7 @@ export function WaterfallViewer({
       const srcRow = source[tickRef.current % source.length];
       rows.pop();
       rows.unshift(varyRow(srcRow, tickRef.current));
-      paintRef.current();
+      paint();
     };
 
     raf = requestAnimationFrame(loop);
@@ -222,7 +226,7 @@ export function WaterfallViewer({
       className={`relative min-h-0 border border-grid bg-panel ${className}`}
       style={style}
     >
-      <h2 className="absolute left-3 top-2 z-10 font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-muted">
+      <h2 className="absolute left-3 top-2 z-10 font-sans text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">
         WATERFALL
       </h2>
 

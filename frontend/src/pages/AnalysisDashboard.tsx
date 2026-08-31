@@ -1,5 +1,8 @@
 import type { CSSProperties } from 'react';
 import { ConstellationViewer } from '../components/ConstellationViewer';
+import { HypothesisRanking } from '../components/HypothesisRanking';
+import { ParameterPanel } from '../components/ParameterPanel';
+import { PipelineStatus } from '../components/PipelineStatus';
 import { SpectrumViewer } from '../components/SpectrumViewer';
 import { WaterfallViewer } from '../components/WaterfallViewer';
 import { generateMockSignal } from '../services/mockData';
@@ -25,7 +28,7 @@ function EmptyPanel({
       className={`relative min-h-0 border border-grid bg-panel ${className}`}
       style={style}
     >
-      <h2 className="absolute left-3 top-2 font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-muted">
+      <h2 className="absolute left-3 top-2 font-sans text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">
         {label}
       </h2>
     </section>
@@ -49,7 +52,7 @@ function EmptyState({
       <div className="flex h-full items-center justify-center px-6">
         <div className="flex w-full max-w-xl flex-col items-center">
           <div className="flex w-full flex-col items-center border border-dashed border-grid bg-panel px-10 py-16">
-            <p className="font-mono text-sm tracking-[0.28em] text-primary">
+            <p className="font-sans text-xs font-semibold tracking-[0.24em] text-primary">
               DROP SIGNAL FILE
             </p>
             <p className="mt-3 font-mono text-[11px] tracking-[0.18em] text-muted">
@@ -57,7 +60,7 @@ function EmptyState({
             </p>
             <button
               type="button"
-              className="mt-8 rounded border border-grid px-4 py-1.5 font-mono text-[11px] tracking-[0.16em] text-primary transition-colors hover:bg-primary hover:text-background"
+              className="mt-8 rounded border border-grid px-4 py-1.5 font-sans text-xs tracking-wider text-primary transition-colors duration-150 hover:border-primary hover:text-signal-cyan"
             >
               Browse Files
             </button>
@@ -65,14 +68,14 @@ function EmptyState({
 
           <div className="mt-8 flex w-full max-w-sm items-center gap-4">
             <div className="h-px flex-1 bg-grid" />
-            <span className="font-mono text-[10px] tracking-[0.24em] text-muted">OR</span>
+            <span className="font-sans text-[10px] tracking-[0.24em] text-muted">OR</span>
             <div className="h-px flex-1 bg-grid" />
           </div>
 
           <button
             type="button"
             onClick={() => onLoadSignal(generateMockSignal())}
-            className="mt-6 font-mono text-[11px] tracking-[0.14em] text-muted underline decoration-grid underline-offset-4 hover:text-primary"
+            className="mt-6 font-sans text-xs tracking-wider text-muted underline decoration-grid underline-offset-4 transition-colors duration-150 hover:text-primary hover:decoration-primary"
           >
             Load demonstration signal
           </button>
@@ -98,11 +101,11 @@ function LoadedState({
         <button
           type="button"
           onClick={onClearSignal}
-          className="font-mono text-sm tracking-[0.42em] text-primary"
+          className="font-mono text-sm tracking-[0.42em] text-primary transition-colors duration-150 hover:text-signal-cyan"
         >
           SIGMA
         </button>
-        <div className="flex items-center gap-2 font-mono text-[11px] tracking-[0.16em] text-signal-green">
+        <div className="flex items-center gap-2 font-sans text-[11px] font-medium tracking-[0.16em] text-signal-green">
           <span className="text-[8px] leading-none" aria-hidden>
             ●
           </span>
@@ -116,7 +119,14 @@ function LoadedState({
           style={{ gridArea: 'sidebar' }}
         >
           <EmptyPanel label="SIGNAL FILE" className="flex-1" />
-          <EmptyPanel label="PARAMETERS" className="flex-1" />
+          <ParameterPanel
+            parameters={signal.parameters}
+            className="flex-1"
+          />
+          <PipelineStatus
+            stages={signal.pipeline}
+            className="flex-1"
+          />
         </aside>
         <SpectrumViewer
           spectrum={signal.spectrum}
@@ -127,8 +137,8 @@ function LoadedState({
           isLive
           style={{ gridArea: 'waterfall' }}
         />
-        <EmptyPanel
-          label="HYPOTHESIS ENGINE"
+        <HypothesisRanking
+          hypotheses={signal.hypotheses}
           style={{ gridArea: 'hypothesis' }}
         />
         <ConstellationViewer

@@ -1,0 +1,12 @@
+@keyframes hypothesis-bar-grow {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--target-width);
+  }
+}
+
+.hypothesis-bar-fill {
+  animation: hypothesis-bar-grow 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

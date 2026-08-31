@@ -192,7 +192,7 @@ export function SpectrumViewer({
       className={`relative min-h-0 border border-grid bg-panel ${className}`}
       style={style}
     >
-      <h2 className="absolute left-3 top-2 z-10 font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-muted">
+      <h2 className="absolute left-3 top-2 z-10 font-sans text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">
         SIGNAL SPECTRUM
       </h2>
 
@@ -290,8 +290,8 @@ export function SpectrumViewer({
               y={size.height - 4}
               textAnchor="middle"
               fill="var(--color-text-muted)"
-              fontFamily="var(--font-mono)"
-              fontSize={10}
+              fontFamily="var(--font-sans)"
+              fontSize={9}
               className="uppercase tracking-[0.18em]"
             >
               FREQUENCY ({chart.unit.suffix})
@@ -301,8 +301,8 @@ export function SpectrumViewer({
               y={PLOT_PAD.top + chart.innerH / 2}
               textAnchor="middle"
               fill="var(--color-text-muted)"
-              fontFamily="var(--font-mono)"
-              fontSize={10}
+              fontFamily="var(--font-sans)"
+              fontSize={9}
               className="uppercase tracking-[0.18em]"
               transform={`rotate(-90 12 ${PLOT_PAD.top + chart.innerH / 2})`}
             >

@@ -1,17 +1,18 @@
 .constellation-dot {
   fill: var(--color-signal-cyan);
   stroke: none;
-  opacity: 0;
-  animation: constellation-scatter 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0.5;
+  animation: constellation-scatter 450ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 @keyframes constellation-scatter {
-  from {
+  0% {
     opacity: 0;
-    transform: translate(0, 0);
+    transform: translate(calc(-0.35 * var(--dx)), calc(-0.35 * var(--dy)));
   }
-  to {
+  100% {
     opacity: 0.5;
-    transform: translate(var(--dx), var(--dy));
+    transform: translate(0px, 0px);
   }
 }
+
