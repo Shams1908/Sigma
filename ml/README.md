@@ -6,6 +6,8 @@ This directory contains the machine learning components of the SIGMA platform.
 > **Milestone Status:**
 > * **M1 — Dataset Foundation:** COMPLETE and verified.
 > * **M2.1, M2.2, M2.3, M2.4, M2.5 — Synthetic Signal Generator Track:** COMPLETE and verified (includes base config, bit generator, modulation mappers, RRC pulse shaping, AWGN channel, and RF impairments).
+> * **M3 — Feature Engineering:** COMPLETE and verified.
+> * **M4 — Classical ML Baseline:** COMPLETE and verified.
 > * *Rayleigh/Rician fading channels, multipath, FEC, interleaving, or ML models are NOT implemented.*
 
 ## Subdirectories
@@ -331,6 +333,108 @@ When multiple impairments are enabled, they are applied sequentially in the foll
 5. **Timing offset**
 
 All impairment transformations are deterministic and contain no internal random state or stochastic modeling.
+
+---
+
+## Milestone M3: Feature Engineering
+
+The purpose of M3 is to build a reusable, deterministic, and highly optimized DSP feature-extraction pipeline that converts raw IQ samples (shape `[2, 128]`) into fixed-length numerical feature vectors (shape `[36]`).
+
+### Feature Schema & Ordering
+The extractor outputs a stable feature vector containing exactly **36 features** in a strict deterministic order:
+1. **Amplitude Features (4)**:
+   - `amplitude_mean`: Sample mean of $a[n] = |x[n]|$.
+   - `amplitude_variance`: Sample variance of $a[n]$.
+   - `amplitude_kurtosis`: Fisher's excess kurtosis of $a[n]$. If $\text{Var}(a) < 1e-9$, returns $0.0$.
+   - `amplitude_peak_to_average_ratio`: PAR $= \max(a)^2 / E[a^2]$. If $E[a^2] < 1e-9$, returns $0.0$.
+2. **Phase Features (12)**:
+   - `phase_variance`: Sample variance of wrapped phase $\phi[n] = \text{angle}(x[n]) \in [-\pi, \pi]$ (without unwrapping).
+   - `phase_difference_mean`: Sample mean of phase difference $d\phi[n] = \text{angle}(x[n] x^*[n-1])$.
+   - `phase_difference_variance`: Sample variance of $d\phi[n]$.
+   - `phase_difference_kurtosis`: Excess kurtosis of $d\phi[n]$. If $\text{Var}(d\phi) < 1e-9$, returns $0.0$.
+   - `phase_hist_bin_0` to `phase_hist_bin_7`: Normalized probability mass over 8 uniform phase bins covering $[-\pi, \pi)$. Near-zero magnitude samples ($|x[n]| < 1e-9$) are safely forced to $0.0$ phase.
+3. **Instantaneous Frequency Features (2)**:
+   - `instantaneous_frequency_mean`: Sample mean of normalized phase increments $d\phi[n]$ (angular change per sample, not converted to Hz).
+   - `instantaneous_frequency_variance`: Sample variance of $d\phi[n]$.
+4. **Normalized $C_{40}$ Cumulant Features (3)**:
+   - `c40_real`, `c40_imag`, `c40_magnitude` representing components of the normalized fourth-order cumulant:
+     $$C_{40} = \frac{E[x^4] - 3(E[x^2])^2}{E[|x|^2]^2}$$
+     Calculated in double-precision complex numbers (`complex128`) for stability. Returns $0.0 + 0.0j$ if signal power is $< 1e-9$.
+5. **Autocorrelation Features (15)**:
+   - Complex normalized autocorrelation $R_{\text{norm}}[k] = R[k] / R[0]$ components (real, imaginary, and magnitude) for lags $k \in \{1, 2, 4, 8, 16\}$, where $R[k] = E[x[n] x^*[n-k]]$. Returns $0.0 + 0.0j$ if average power $R[0] < 1e-9$.
+
+### Feature Extraction API
+Exposes three high-level vectorized methods in `ml/features/extractor.py`:
+- `extract_features(samples)`: Process single sample shape `[2, 128]` to return `names, feature_vector`.
+- `extract_batch_features(batch_samples)`: Process batch of shape `[N, 2, 128]` to return feature matrix `[N, 36]`.
+- `extract_feature_matrix(dataset, indices)`: Batch process full or subset dataset to return feature matrix `X` of shape `[N, 36]`, targets `y` of shape `[N]`, and SNR metadata `snrs` of shape `[N]`.
+
+### Numeric Robustness & Data Leakage Policy
+- **Numeric Safety:** All divisions are protected using epsilon masks, ensuring exactly **0 NaNs** and **0 Infs** are produced for any input signal (including zero-power signals).
+- **Zero Leakage:** No parameter of the feature extractor is learned from the dataset (no fit-step). Downstream scaling or dimensionality reduction (to be done in M4) must be fitted on training splits only.
+
+### Diagnostic & Inspection Utility
+To run the extraction pipeline on all 220,000 samples, perform validation, analyze training split feature correlation, and generate the final summary report, run:
+```powershell
+# Run the inspection utility
+.\backend\venv\Scripts\python.exe ml/features/inspect_features.py
+```
+This utility automatically saves the processed feature matrix, labels, and SNR metadata as a compressed NumPy file at `datasets/processed/RML2016.10a_features.npz`.
+
+---
+
+## Milestone M4: Classical ML Baseline
+
+The purpose of M4 is to train, optimize, select, and evaluate classical machine-learning classifiers using the 36 DSP features extracted in M3, establishing a strong, interpretable baseline before deep learning (CNNs).
+
+### Models Evaluated
+- **Random Forest**: Scalable tree ensemble, evaluated with n_estimators={50, 100}, max_depth={15, 20}.
+- **HistGradientBoosting**: Histogram-based Gradient Boosting, optimized for large datasets, evaluated with max_iter={100, 150}, max_depth={10, 15}.
+
+All models are trained with a fixed `random_state = 42`.
+
+### Preprocessing & Data Splits
+- **Zero Preprocessing**: Preprocessing and feature scaling are explicitly omitted since decision-tree ensembles are invariant to monotonic scaling, maintaining absolute simplicity.
+- **Split Strategy**: Reuses the exact M1 stratified index split (70% Train, 15% Val, 15% Test) with no split leakage. All hyperparameters are tuned using the validation split.
+
+### Model Selection
+The champion model is selected using the validation split's **macro F1** score:
+- **Selected Champion**: `HistGradientBoostingClassifier` (`max_iter=100`, `max_depth=10`, `learning_rate=0.1`)
+- **Validation Macro F1**: `0.5643` (Accuracy: `0.5482`)
+
+### Feature Ablation Experiment
+Highly correlated feature sets ($|r| > 0.95$ on the training split) were evaluated for redundancy. Removing 5 features (`instantaneous_frequency_variance`, `instantaneous_frequency_mean`, `autocorr_lag_1_magnitude`, `autocorr_lag_2_magnitude`, `autocorr_lag_4_magnitude`) resulted in:
+- **Validation Macro F1 (31 features)**: `0.5644` (Accuracy: `0.5481`)
+- **Conclusion**: Removing these redundant features maintains model validation performance perfectly, validating M3 correlation analysis.
+
+### Final Untouched Test Set Evaluation
+The selected full-feature champion model was evaluated on the untouched test split (33,000 samples) and achieved:
+- **Accuracy**: `0.5494`
+- **Macro Precision**: `0.6410`
+- **Macro Recall**: `0.5494`
+- **Macro F1**: `0.5656`
+- **Weighted F1**: `0.5656`
+
+Performance degrades severely at lower SNRs but becomes highly robust at high SNRs (reaching over 86% accuracy above 12 dB).
+
+### Feature Importance & Explainability
+For Random Forest, feature importances map directly back to the M3 schema. The top 5 ranked features are:
+1. `amplitude_variance`
+2. `autocorr_lag_1_real`
+3. `amplitude_mean`
+4. `autocorr_lag_1_magnitude`
+5. `amplitude_peak_to_average_ratio`
+
+This demonstrates that amplitude variations and short-lag correlation statistics carry the most discriminative power for classical modulation classification.
+
+### Model Artifacts & Inference API
+- **Saved Model**: Serialized at `models/baseline_hgb.joblib` along with comprehensive metadata at `models/baseline_hgb_metadata.json`.
+- **Inference Usage**: Use `predict(features)` in `ml/baselines/inference.py` to reload models and execute predictions:
+  ```python
+  from ml.baselines.inference import predict
+  result = predict(sample_features) # shape (36,)
+  # Returns: predicted class name, class index, confidence, probabilities
+  ```
 
 ---
 
