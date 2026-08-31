@@ -1,4 +1,7 @@
 import type { CSSProperties } from 'react';
+import { ConstellationViewer } from '../components/ConstellationViewer';
+import { SpectrumViewer } from '../components/SpectrumViewer';
+import { WaterfallViewer } from '../components/WaterfallViewer';
 import { generateMockSignal } from '../services/mockData';
 import type { AnalyzedSignal } from '../types';
 
@@ -115,14 +118,21 @@ function LoadedState({
           <EmptyPanel label="SIGNAL FILE" className="flex-1" />
           <EmptyPanel label="PARAMETERS" className="flex-1" />
         </aside>
-        <EmptyPanel label="SIGNAL SPECTRUM" style={{ gridArea: 'spectrum' }} />
-        <EmptyPanel label="WATERFALL" style={{ gridArea: 'waterfall' }} />
+        <SpectrumViewer
+          spectrum={signal.spectrum}
+          style={{ gridArea: 'spectrum' }}
+        />
+        <WaterfallViewer
+          waterfall={signal.waterfall}
+          isLive
+          style={{ gridArea: 'waterfall' }}
+        />
         <EmptyPanel
           label="HYPOTHESIS ENGINE"
           style={{ gridArea: 'hypothesis' }}
         />
-        <EmptyPanel
-          label="CONSTELLATION"
+        <ConstellationViewer
+          constellation={signal.constellation}
           style={{ gridArea: 'constellation' }}
         />
       </div>
