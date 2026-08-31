@@ -583,6 +583,138 @@ The purpose of M6.3 is to identify the root causes of the synthetic-to-real doma
 
 ---
 
+## Milestone M6.4.1: Data-Driven Synthetic Amplitude Calibration
+
+The purpose of M6.4.1 was to solve the severe amplitude scale gap (140x) identified in M6.3 without hardcoding any numeric constants.
+- **Dynamic Calculation**: We compute the training-split real RMS dynamically and the synthetic clean reference RMS dynamically.
+- **Global Scaling**: A scale factor is applied to synthetic signals so that their RMS matches the real-world reference split.
+- **Results**: Correcting the amplitude mismatch improved frozen CNN Macro F1 from **0.1244 to 0.1989** (+0.07 F1) and reduced the QPSK prediction collapse.
+
+---
+
+## Milestone M6.4.2: Realistic Synthetic Channel Refinement
+
+We refined the synthetic generator by implementing realistic receiver distortions matching M6.3 measurements:
+- **Wiener Phase Noise**: Simulates local oscillator drift step cumulative random walks.
+- **FIR Channel Response**: Convolves waveforms with power-normalized channel filter taps.
+- **Results**: Evaluating on refined signals yielded **0.1958 F1**. This slight increase in difficulty reflects real-world propagation channels.
+
+---
+
+## Milestone M6.5: Synthetic-Assisted Training
+
+We conducted a fully controlled 5-class evaluation (BPSK, QPSK, 8PSK, QAM16, QAM64) to determine if synthetic data can assist training:
+- **Real Only Baseline**: Test Macro F1 of **0.6403**.
+- **Synthetic Only**: Generalizes to real test set at **0.2942 F1**.
+- **Mixed Training**: Adding synthetic data (10%, 25%, 50%) degrades real test performance (e.g., 10% mix drops F1 to **0.5603**). This shows that domain mismatch causes models to learn simulation-specific features.
+- **Pretrain-Finetune**: Synthetic pretraining followed by real fine-tuning achieves **0.6372 F1**, indicating its utility as a representation pretraining step.
+- **Quality Verification**: Real + 10% Original Synthetic yields **0.4337 F1**, whereas Real + 10% Calibrated/Refined Synthetic achieves **0.5704 / 0.5603 F1**. This programmatically validates that our calibration work reduced the mismatch degradation significantly (+0.13 F1).
+
+---
+
+## Milestone M7.1: Universal Signal Input & WAV/IQ Adapter
+
+This package provides a clean, reusable input adapter layer that automatically ingests user-uploaded signal files, validates them, and converts them to the canonical form expected by the ML layer.
+
+### Architectural Pipeline Separation
+To prevent responsibilities from leaking, the architecture enforces a strict boundaries separation:
+1. **INPUT PARSING (Adapter Layer)**: Responsible for file format detection, container parsing, validation checks (NaNs/Infs, size limits), layout standardization to canonical `[2, N]`, and segmentation into `[M, 2, 128]` windows.
+2. **PREPROCESSING (Model Layer)**: Responsible for dynamic amplitude scaling (e.g. dividing by model-specific training RMS factor) immediately before running inference.
+3. **MODEL INFERENCE (PyTorch Layer)**: Running the batch inputs through the RawIQCNN neural network to obtain predictions.
+
+### Supported Input Formats
+- **Stereo WAV**: Audio container containing In-phase and Quadrature channels.
+- **NPY/NPZ**: NumPy arrays containing signal data.
+- **BIN/DAT**: Raw interleaved or non-interleaved binary IQ files (requires explicit configuration).
+
+### WAV IQ Layout Convention
+- The input pipeline strictly expects **stereo WAV files** where:
+  - Channel 0 represents the **In-phase (I)** component.
+  - Channel 1 represents the **Quadrature (Q)** component.
+- **Mono WAV files** are explicitly rejected with a validation error to prevent silent, arbitrary audio interpretations.
+- Integer formats (e.g., int16) are dynamically normalized to float32 values in range `[-1.0, 1.0]`.
+
+### Canonical IQ Representation
+Downstream components receive a standardized Complex IQ layout:
+- **Shape**: `[2, N]` (2 rows: row 0 = I, row 1 = Q; N columns of samples).
+- **Dtype**: `float32`.
+- **Validation constraints**: Zero NaNs, zero Infs, finite numeric values, and non-empty signal samples.
+
+### Segmentation Behavior
+- Converts canonical `[2, N]` arrays into windows of shape `[M, 2, segment_length]`.
+- **Segment Length**: Defaults to `128` (configurable).
+- **Signals shorter than segment length**: Rejected with a validation error by default. Trailing zero-padding can be explicitly enabled via configuration (`pad_short=True`).
+- **Signals longer than segment length**: Segmented into multiple complete windows. Residual trailing samples are discarded.
+- **Ordering**: Strict, deterministic sequence matching the original time-series.
+
+### Configuration Options
+Centralized in `PipelineConfig` and `BinaryIQConfig`:
+- `max_file_size_bytes`: Configurable maximum allowed size (defaults to 50 MB).
+- `segment_length`: Expected window length (defaults to 128).
+- `binary_config`: Configuration required for raw binary files (defines `dtype`, `interleaved` boolean, and `endianness`). No silent guessing.
+
+### Unsupported Input Behavior
+- Mismatched container structures (e.g., non-ZIP `.npz` files), unsupported extensions, empty files, or files containing NaNs/Infs will produce a clear, descriptive validation error and set validation status to `ERROR` in the result metadata.
+
+---
+
+## Milestone M7.2: End-to-End File → CNN Prediction Pipeline
+
+This package integrates the M7.1 input layer with the pre-trained M5 1D CNN baseline to provide a unified end-to-end file-to-prediction analysis pipeline.
+
+### Architectural Responsibility Separation
+To keep components decoupled, the interface separates responsibilities:
+* **M7.1 (Input Package)**: Ingests, validates, normalizes container data formats to canonical float32 `[2, N]`, and segments the signal into non-overlapping windows.
+* **M7.2 (Inference Package)**: Loads the frozen model, extracts the checkpoint-specific normalization scaling factor, runs batch inference, and aggregates segment-level predictions.
+
+### File-to-Prediction Flow
+```
+               USER UPLOAD FILE (WAV, NPY, NPZ, BIN, DAT)
+                                  ↓
+                   M7.1 FORMAT & HEADER DETECTION
+                                  ↓
+                PARSING TO CANONICAL COMPLEX IQ [2, N]
+                                  ↓
+                    SEGMENTATION INTO [2, 128]
+                                  ↓
+                 LOAD CACHED FROZEN M5 MODEL & RMS
+                                  ↓
+                 RMS SCALING & PyTorch CPU INFERENCE
+                                  ↓
+                 SEGMENT Softmax LOGITS & ENTROPIES
+                                  ↓
+                FILE-LEVEL PROBABILITY AGGREGATION
+```
+
+### Dynamic Normalization Handling
+- **No Hardcoding**: We never hardcode dataset RMS values.
+- - The integration layer reads the training-only RMS scaling factor (`rms_factor`) dynamically from the checkpoint dictionary `models/m5_iq_cnn.pt` during model loading.
+- - The input segment values are divided by this factor before PyTorch execution, guaranteeing normalization consistency across all signals.
+
+### Segment-Level Predictions
+For each processed window, we compute:
+- Predicted class index and predicted modulation name.
+- Squeezed confidence score (maximum probability).
+- Raw probability vector across all 11 classes.
+- Top-k predictions (defaults to 5) sorted in descending order.
+
+### File-Level Aggregation Strategy
+To avoid bias toward the first window in a long recording, we compute a unified file-level prediction:
+1. **Average Probability**: Compute the element-wise mean probability vector across all valid segmented windows.
+2. **Argmax Class Selection**: Run argmax on the average probability vector to determine the final predicted modulation.
+3. **Aggregated Confidence**: Retrieve the value at the predicted class index in the average probability vector.
+4. **Shannon Entropy**: Calculate the average Shannon entropy across windows to quantify prediction uncertainty:
+   $$\bar{H} = -\frac{1}{M}\sum_{m=1}^{M}\sum_{c=1}^{C} p_{m,c} \log(p_{m,c} + 10^{-12})$$
+
+### Output Result Schema
+The output is captured as a structured `SignalAnalysisResult` object, containing:
+* **Input metadata**: filename, detected format, sample rate, original sample count, and canonical IQ shape.
+* **Model predictions**: predicted class index, name, confidence, probability vector, and top-5 predictions.
+* **Window results**: window count, predictions, confidences, probabilities, and class distribution counts.
+* **Execution info**: checkpoint path, normalization source, window length, and success status.
+
+---
+
 ## How to Run
 
 ### 1. Dataset Inspection Utility
@@ -619,8 +751,22 @@ $env:PYTHONPATH="."
 .\backend\venv\Scripts\python.exe ml/synthetic/domain_analysis.py
 ```
 
-### 6. Running Unit & Integration Tests
-To run all tests (including dataset loaders, M2 generator components, M3 extractor math, M4 baseline models, M5 CNN baseline tests, M6.1 synthetic tests, M6.2 cross-domain tests, and M6.3 domain analysis tests):
+### 6. M7.1 Manual Test CLI Diagnostic Tool
+To run the diagnostic CLI to parse, validate, and segment any input signal file:
+```powershell
+$env:PYTHONPATH="."
+.\backend\venv\Scripts\python.exe -m ml.input.pipeline_test "path/to/signal.wav"
+```
+
+### 7. M7.2 End-to-End Prediction CLI Tool
+To execute the complete end-to-end signal prediction pipeline and print the predictions breakdown:
+```powershell
+$env:PYTHONPATH="."
+.\backend\venv\Scripts\python.exe -m ml.inference.pipeline_test "path/to/signal.wav"
+```
+
+### 8. Running Unit & Integration Tests
+To run all 101 unit tests in the project (including synthetic generators, calibration tests, dataset loaders, baselines, CNNs, M7.1 input pipeline, and M7.2 end-to-end inference test suites):
 ```powershell
 $env:PYTHONPATH="."
 .\backend\venv\Scripts\pytest

@@ -36,6 +36,8 @@ Thumbs.db
 # RF / Project Data (placeholder extension blocks)
 *.iq
 *.wav
+*.bin
+*.dat
 data/
 datasets/raw/*
 datasets/processed/*
