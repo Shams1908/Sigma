@@ -1,5 +1,2 @@
-"""
-Future responsibility:
-Extraction of recording metadata (sample rate, center frequency, timestamp, hardware setup, duration).
-Implementation will be added during the file ingestion phase.
-"""
+# Superseded by ml.input.types.SignalMetadata.
+# Do not add metadata structures here — use ml.input.types.SignalMetadata instead.
