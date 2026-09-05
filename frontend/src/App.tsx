@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { AnalysisDashboard } from './pages/AnalysisDashboard';
-import type { AnalyzedSignal } from './types';
+import LandingView from './pages/LandingView';
+import AnalysisDashboard from './pages/AnalysisDashboard';
+
+type View = 'landing' | 'dashboard';
 
 export default function App() {
-  const [signal, setSignal] = useState<AnalyzedSignal | null>(null);
+  const [currentView, setCurrentView] = useState<View>('landing');
 
   return (
-    <div className="h-dvh overflow-hidden bg-background text-primary">
-      <AnalysisDashboard
-        signal={signal}
-        onLoadSignal={setSignal}
-        onClearSignal={() => setSignal(null)}
-      />
+    <div className="min-h-screen">
+      {currentView === 'landing' ? (
+        <LandingView onLaunch={() => setCurrentView('dashboard')} />
+      ) : (
+        <AnalysisDashboard onBack={() => setCurrentView('landing')} />
+      )}
     </div>
   );
 }

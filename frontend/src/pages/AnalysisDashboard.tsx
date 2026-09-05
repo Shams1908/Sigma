@@ -1,153 +1,275 @@
-import type { CSSProperties } from 'react';
-import { ConstellationViewer } from '../components/ConstellationViewer';
-import { SpectrumViewer } from '../components/SpectrumViewer';
-import { WaterfallViewer } from '../components/WaterfallViewer';
-import { generateMockSignal } from '../services/mockData';
-import type { AnalyzedSignal } from '../types';
+import { useState, useCallback } from 'react';
+import SpectrumViewer from '../../../../frontend/src/components/SpectrumViewer';
+import WaterfallViewer from '../../../../frontend/src/components/WaterfallViewer';
+import ConstellationViewer from '../../../../frontend/src/components/ConstellationViewer';
+import DataReadouts from '../../../../frontend/src/components/DataReadouts';
+import HypothesisExplorer from '../../../../frontend/src/components/HypothesisExplorer';
 
-type AnalysisDashboardProps = {
-  signal: AnalyzedSignal | null;
-  onLoadSignal: (signal: AnalyzedSignal) => void;
-  onClearSignal: () => void;
-};
-
-function EmptyPanel({
-  label,
-  className = '',
-  style,
-}: {
-  label: string;
-  className?: string;
-  style?: CSSProperties;
-}) {
-  return (
-    <section
-      className={`relative min-h-0 border border-grid bg-panel ${className}`}
-      style={style}
-    >
-      <h2 className="absolute left-3 top-2 font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-muted">
-        {label}
-      </h2>
-    </section>
-  );
+interface AnalysisDashboardProps {
+  onBack: () => void;
 }
 
-function EmptyState({
-  onLoadSignal,
-}: {
-  onLoadSignal: (signal: AnalyzedSignal) => void;
-}) {
-  return (
-    <div className="relative h-full w-full bg-background">
-      <div className="absolute left-6 top-6">
-        <div className="font-mono text-sm tracking-[0.42em] text-primary">SIGMA</div>
-        <p className="mt-1.5 font-sans text-[10px] tracking-[0.28em] text-muted">
-          SIGNAL INTELLIGENCE WORKSTATION
-        </p>
-      </div>
+interface SignalData {
+  spectrum: { frequency: number; magnitudeDb: number }[];
+  waterfall: number[][];
+  constellation: { i: number; q: number }[];
+  parameters: {
+    carrierFrequency: number;
+    sampleRate: number;
+    bandwidth: number;
+    snr: number;
+    symbolRate: number;
+  };
+  hypotheses: {
+    id: string;
+    modulation: string;
+    symbolRate: number;
+    mlConfidence: number;
+    validation: {
+      syncPassed: boolean;
+      demodPassed: boolean;
+      fecPassed: boolean;
+    };
+    isWinner: boolean;
+  }[];
+}
 
-      <div className="flex h-full items-center justify-center px-6">
-        <div className="flex w-full max-w-xl flex-col items-center">
-          <div className="flex w-full flex-col items-center border border-dashed border-grid bg-panel px-10 py-16">
-            <p className="font-mono text-sm tracking-[0.28em] text-primary">
-              DROP SIGNAL FILE
-            </p>
-            <p className="mt-3 font-mono text-[11px] tracking-[0.18em] text-muted">
-              .IQ &nbsp; .WAV &nbsp; .RAW
-            </p>
-            <button
-              type="button"
-              className="mt-8 rounded border border-grid px-4 py-1.5 font-mono text-[11px] tracking-[0.16em] text-primary transition-colors hover:bg-primary hover:text-background"
-            >
-              Browse Files
-            </button>
-          </div>
+export default function AnalysisDashboard({ onBack }: AnalysisDashboardProps) {
+  const [signalData, setSignalData] = useState<SignalData | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isSynthetic, setIsSynthetic] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
-          <div className="mt-8 flex w-full max-w-sm items-center gap-4">
-            <div className="h-px flex-1 bg-grid" />
-            <span className="font-mono text-[10px] tracking-[0.24em] text-muted">OR</span>
-            <div className="h-px flex-1 bg-grid" />
-          </div>
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
 
+  const handleDragLeave = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const validFile = files.find(f => 
+      f.name.endsWith('.iq') || 
+      f.name.endsWith('.IQ') || 
+      f.name.endsWith('.wav') || 
+      f.name.endsWith('.WAV')
+    );
+
+    if (!validFile) {
+      alert('Please upload a .IQ or .wav file');
+      return;
+    }
+
+    setIsUploading(true);
+
+    const formData = new FormData();
+    formData.append('file', validFile);
+    formData.append('is_synthetic', isSynthetic.toString());
+
+    try {
+      const uploadResponse = await fetch('http://localhost:8000/api/v1/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const uploadResult = await uploadResponse.json();
+      const analysisId = uploadResult.analysis_id;
+
+      const [analysisRes, resultsRes] = await Promise.all([
+        fetch(`http://localhost:8000/api/v1/analysis/${analysisId}`),
+        fetch(`http://localhost:8000/api/v1/results/${analysisId}`)
+      ]);
+
+      const analysisData = await analysisRes.json();
+      const resultsData = await resultsRes.json();
+
+      setSignalData({
+        spectrum: analysisData.spectrum,
+        waterfall: analysisData.waterfall,
+        constellation: analysisData.constellation,
+        parameters: resultsData.parameters,
+        hypotheses: resultsData.hypotheses
+      });
+    } catch (error) {
+      console.error('Upload or analysis failed:', error);
+      alert('Failed to process file. Make sure the backend server is running.');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [isSynthetic]);
+
+  const handleClear = () => {
+    setSignalData(null);
+  };
+
+  if (!signalData) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-200">
+        <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
           <button
-            type="button"
-            onClick={() => onLoadSignal(generateMockSignal())}
-            className="mt-6 font-mono text-[11px] tracking-[0.14em] text-muted underline decoration-grid underline-offset-4 hover:text-primary"
+            onClick={onBack}
+            className="text-2xl font-bold tracking-wider hover:text-teal-400 transition-colors"
           >
-            Load demonstration signal
+            SIGMA
           </button>
+        </header>
+
+        <div className="flex items-center justify-center min-h-[calc(100vh-73px)] p-6">
+          <div className="max-w-2xl w-full">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold mb-3 text-white">Signal Analysis Workstation</h2>
+              <p className="text-slate-400">Upload .IQ or .wav files for automated modulation analysis</p>
+            </div>
+
+            <div className="mb-6 flex items-center justify-center gap-4">
+              <button
+                onClick={() => setIsSynthetic(false)}
+                className={`px-6 py-2 rounded-lg font-mono text-sm transition-all ${
+                  !isSynthetic
+                    ? 'bg-teal-500 text-slate-900 font-bold'
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
+              >
+                Real Recording
+              </button>
+              <button
+                onClick={() => setIsSynthetic(true)}
+                className={`px-6 py-2 rounded-lg font-mono text-sm transition-all ${
+                  isSynthetic
+                    ? 'bg-teal-500 text-slate-900 font-bold'
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
+              >
+                Synthetic Signal
+              </button>
+            </div>
+
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-2xl p-16 transition-all ${
+                isDragging
+                  ? 'border-teal-400 bg-teal-500/10'
+                  : 'border-slate-700 bg-slate-800/50'
+              } ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              <div className="text-center">
+                <div className="mb-4">
+                  <svg
+                    className="w-16 h-16 mx-auto text-slate-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                </div>
+                {isUploading ? (
+                  <div className="text-teal-400 font-mono">PROCESSING...</div>
+                ) : (
+                  <>
+                    <div className="text-lg font-semibold mb-2 text-slate-300">
+                      Drop your signal file here
+                    </div>
+                    <div className="text-sm text-slate-500 font-mono">
+                      Accepts .IQ and .WAV formats
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <div className="inline-flex items-center gap-2 text-xs text-slate-500 font-mono">
+                <div className="w-2 h-2 bg-slate-700 rounded-full"></div>
+                <span>Backend: http://localhost:8000</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-function LoadedState({
-  signal,
-  onClearSignal,
-}: {
-  signal: AnalyzedSignal;
-  onClearSignal: () => void;
-}) {
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <header
-        className="flex h-14 shrink-0 items-center justify-between border-b border-grid px-5"
-        aria-label={`Loaded ${signal.metadata.fileName}`}
-      >
+    <div className="min-h-screen bg-slate-900 text-slate-200">
+      <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
         <button
-          type="button"
-          onClick={onClearSignal}
-          className="font-mono text-sm tracking-[0.42em] text-primary"
+          onClick={handleClear}
+          className="text-2xl font-bold tracking-wider hover:text-teal-400 transition-colors"
         >
           SIGMA
         </button>
-        <div className="flex items-center gap-2 font-mono text-[11px] tracking-[0.16em] text-signal-green">
-          <span className="text-[8px] leading-none" aria-hidden>
-            ●
-          </span>
-          <span>SYSTEM ONLINE</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></div>
+            <span className="text-sm font-mono text-teal-400 tracking-wider">SYSTEM ONLINE</span>
+          </div>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 text-sm font-mono bg-slate-800 hover:bg-slate-700 rounded transition-colors"
+          >
+            Exit
+          </button>
         </div>
       </header>
 
-      <div className="workstation-grid min-h-0 flex-1">
-        <aside
-          className="flex min-h-0 flex-col gap-2"
-          style={{ gridArea: 'sidebar' }}
-        >
-          <EmptyPanel label="SIGNAL FILE" className="flex-1" />
-          <EmptyPanel label="PARAMETERS" className="flex-1" />
-        </aside>
-        <SpectrumViewer
-          spectrum={signal.spectrum}
-          style={{ gridArea: 'spectrum' }}
-        />
-        <WaterfallViewer
-          waterfall={signal.waterfall}
-          isLive
-          style={{ gridArea: 'waterfall' }}
-        />
-        <EmptyPanel
-          label="HYPOTHESIS ENGINE"
-          style={{ gridArea: 'hypothesis' }}
-        />
-        <ConstellationViewer
-          constellation={signal.constellation}
-          style={{ gridArea: 'constellation' }}
-        />
+      <div className="grid grid-cols-12 grid-rows-3 gap-4 p-6" style={{ height: 'calc(100vh - 73px)' }}>
+        <div className="col-span-3 row-span-3 space-y-4">
+          <div className="bg-slate-900/50 rounded-xl border border-slate-700 p-6 h-48">
+            <div className="text-teal-400 font-mono text-xs tracking-wider mb-4">SIGNAL FILE</div>
+            <div className="space-y-3">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400 font-mono">Type</span>
+                <span className="text-slate-200 font-mono">{isSynthetic ? 'Synthetic' : 'Real'}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400 font-mono">Status</span>
+                <span className="text-teal-400 font-mono">Analyzed</span>
+              </div>
+            </div>
+          </div>
+          <DataReadouts
+            carrierFrequency={signalData.parameters.carrierFrequency}
+            sampleRate={signalData.parameters.sampleRate}
+            bandwidth={signalData.parameters.bandwidth}
+            snr={signalData.parameters.snr}
+            symbolRate={signalData.parameters.symbolRate}
+          />
+        </div>
+
+        <div className="col-span-6 row-span-1">
+          <SpectrumViewer data={signalData.spectrum} />
+        </div>
+
+        <div className="col-span-3 row-span-1">
+          <ConstellationViewer data={signalData.constellation} />
+        </div>
+
+        <div className="col-span-6 row-span-2">
+          <WaterfallViewer data={signalData.waterfall} isLive={true} />
+        </div>
+
+        <div className="col-span-3 row-span-2">
+          <HypothesisExplorer hypotheses={signalData.hypotheses} />
+        </div>
       </div>
     </div>
   );
-}
-
-export function AnalysisDashboard({
-  signal,
-  onLoadSignal,
-  onClearSignal,
-}: AnalysisDashboardProps) {
-  if (!signal) {
-    return <EmptyState onLoadSignal={onLoadSignal} />;
-  }
-
-  return <LoadedState signal={signal} onClearSignal={onClearSignal} />;
 }
