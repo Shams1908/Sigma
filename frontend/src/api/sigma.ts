@@ -306,3 +306,36 @@ export { APIError };
 export async function healthCheck(): Promise<{ status: string; version?: string }> {
   return fetch(`${API_BASE}/health`).then(r => r.json());
 }
+
+
+export async function getWaveform(signalId: string): Promise<{
+  i: number[];
+  q: number[];
+  time: number[];
+  sampleRate: number;
+}> {
+  return fetchJSON(`/visualizations/${signalId}/waveform`);
+}
+
+export async function getDiagnostics(analysisId: string): Promise<{
+  evm_rms: number | null;
+  timing_error_rms: number | null;
+  sync_locked: boolean;
+  demod_locked: boolean;
+  fec_valid: boolean;
+  snr: number;
+  carrier_offset: number;
+}> {
+  return fetchJSON(`/results/${analysisId}/diagnostics`);
+}
+
+export async function getBitstream(analysisId: string): Promise<{
+  available: boolean;
+  bits?: string;
+  total_bits?: number;
+  entropy?: number;
+  ones_ratio?: number;
+  reason?: string;
+}> {
+  return fetchJSON(`/results/${analysisId}/bitstream`);
+}

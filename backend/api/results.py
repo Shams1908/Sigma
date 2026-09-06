@@ -138,3 +138,63 @@ async def get_report(analysis_id: str):
         hypotheses=data["hypotheses"],
         completed_at=data["completed_at"],
     )
+
+
+@router.get("/{analysis_id}/diagnostics")
+async def get_diagnostics(analysis_id: str):
+    """Get real EVM, timing, sync status from completed hypothesis evaluation."""
+    data = await _load_analysis(analysis_id)
+    
+    hypotheses = data.get("hypotheses", [])
+    params = data.get("parameters")
+    
+    if not hypotheses:
+        return {
+            "evm_rms": None,
+            "timing_error_rms": None,
+            "sync_locked": False,
+            "demod_locked": False,
+            "fec_valid": False,
+            "snr": params.snr if params else 0.0,
+            "carrier_offset": params.carrier_offset if params else 0.0,
+        }
+    
+    best = hypotheses[0]
+    
+    return {
+        "evm_rms": float(getattr(best, "evm_rms", 1.0)),
+        "timing_error_rms": float(getattr(best, "timing_error_rms", 1.0)),
+        "sync_locked": bool(getattr(best, "sync_pass", False)),
+        "demod_locked": bool(getattr(best, "demod_pass", False)),
+        "fec_valid": bool(getattr(best, "fec_pass", False)),
+        "snr": float(params.snr) if params else 0.0,
+        "carrier_offset": float(params.carrier_offset) if params else 0.0,
+    }
+
+
+@router.get("/{analysis_id}/bitstream")
+async def get_bitstream(analysis_id: str):
+    """Get real decoded bits from best hypothesis if available."""
+    data = await _load_analysis(analysis_id)
+    
+    hypotheses = data.get("hypotheses", [])
+    
+    if not hypotheses:
+        raise HTTPException(404, "No hypotheses available for bitstream extraction")
+    
+    best = hypotheses[0]
+    
+    decoded_bits = getattr(best, "decoded_bits", None)
+    if decoded_bits is None:
+        return {
+            "available": False,
+            "reason": "Bitstream not yet decoded or demodulation failed"
+        }
+    
+    return {
+        "available": True,
+        "bits": decoded_bits[:1000] if len(decoded_bits) > 1000 else decoded_bits,
+        "total_bits": len(decoded_bits),
+        "entropy": float(getattr(best, "bit_entropy", 0.0)),
+        "ones_ratio": float(getattr(best, "ones_ratio", 0.5)),
+    }

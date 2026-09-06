@@ -70,13 +70,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
           mouseRadius={0.3}
           mouseStrength={0.4}
         />
-        {/* Solid Radial Vignette - NO GLASSMORPHISM */}
-        <div 
-          className="absolute inset-0" 
-          style={{
-            background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.6) 50%, rgb(0,0,0) 100%)'
-          }}
-        />
+        {/* Removed radial vignette - full brightness topography across entire screen */}
       </div>
 
       {/* Floating Solid Navbar */}

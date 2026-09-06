@@ -7,6 +7,9 @@ import WaterfallViewer from '../components/WaterfallViewer';
 import ConstellationViewer from '../components/ConstellationViewer';
 import DataReadouts from '../components/DataReadouts';
 import HypothesisExplorer from '../components/HypothesisExplorer';
+import WaveformViewer from '../components/WaveformViewer';
+import DiagnosticsPanel from '../components/DiagnosticsPanel';
+import ExportToolbar from '../components/ExportToolbar';
 import * as api from '../api/sigma';
 
 interface SpectrumPoint {
@@ -53,6 +56,16 @@ export default function Workstation() {
   } | null>(null);
   const [hypotheses, setHypotheses] = useState<Hypothesis[]>([]);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [waveformData, setWaveformData] = useState<{ i: number[]; q: number[]; time: number[]; sampleRate: number } | null>(null);
+  const [diagnostics, setDiagnostics] = useState<{
+    evm_rms: number | null;
+    timing_error_rms: number | null;
+    sync_locked: boolean;
+    demod_locked: boolean;
+    fec_valid: boolean;
+    snr: number;
+    carrier_offset: number;
+  } | null>(null);
 
   // File upload handlers
   const handleDragEnter = (e: React.DragEvent) => {
@@ -146,6 +159,15 @@ export default function Workstation() {
         console.error('Parameters fetch failed:', paramErr);
       }
       
+      try {
+        console.log('Fetching waveform...');
+        const waveform = await api.getWaveform(signalId);
+        console.log('Waveform received:', waveform.i?.length, 'samples');
+        setWaveformData(waveform);
+      } catch (waveformErr) {
+        console.error('Waveform fetch failed:', waveformErr);
+      }
+      
       setAnalysisProgress(70);
 
       console.log('Starting full hypothesis analysis for signal ID:', signalId);
@@ -178,6 +200,15 @@ export default function Workstation() {
 
           if (results.hypotheses?.hypotheses) {
             setHypotheses(results.hypotheses.hypotheses);
+          }
+          
+          try {
+            console.log('Fetching diagnostics...');
+            const diag = await api.getDiagnostics(analysisId);
+            console.log('Diagnostics received:', diag);
+            setDiagnostics(diag);
+          } catch (diagErr) {
+            console.error('Diagnostics fetch failed:', diagErr);
           }
         } else {
           console.warn('Analysis did not complete successfully:', finalStatus.status);
@@ -415,11 +446,120 @@ export default function Workstation() {
               <ConstellationViewer data={constellationData} />
             </motion.div>
 
-            {/* Hypothesis Explorer - Full Width */}
+            {/* Waveform Viewer */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.6 }}
+              className="col-span-12 lg:col-span-8 h-[350px]"
+            >
+              {waveformData ? (
+                <WaveformViewer 
+                  iData={waveformData.i}
+                  qData={waveformData.q}
+                  timeData={waveformData.time}
+                  sampleRate={waveformData.sampleRate}
+                />
+              ) : (
+                <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <div className="text-4xl">〰️</div>
+                    <p className="text-gray-400 text-sm">Awaiting Signal Data</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Diagnostics Panel */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.7 }}
+              className="col-span-12 lg:col-span-4 h-[350px]"
+            >
+              {diagnostics ? (
+                <DiagnosticsPanel {...diagnostics} />
+              ) : (
+                <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <div className="text-4xl">🔧</div>
+                    <p className="text-gray-400 text-sm">Analysis Pending</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Export Toolbar */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.8 }}
+              className="col-span-12"
+            >
+              <ExportToolbar
+                analysisId={analysisId}
+                fileName={uploadedFile?.name || ''}
+                onExportReport={async () => {
+                  if (!analysisId) return;
+                  try {
+                    const response = await fetch(`http://localhost:8000/api/v1/results/${analysisId}/report`);
+                    const data = await response.json();
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `sigma_report_${analysisId.substring(0, 8)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch (err) {
+                    console.error('Export report failed:', err);
+                  }
+                }}
+                onExportJSON={async () => {
+                  if (!analysisId) return;
+                  try {
+                    const response = await fetch(`http://localhost:8000/api/v1/results/${analysisId}`);
+                    const data = await response.json();
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `sigma_results_${analysisId.substring(0, 8)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch (err) {
+                    console.error('Export JSON failed:', err);
+                  }
+                }}
+                onExportBits={async () => {
+                  if (!analysisId) return;
+                  try {
+                    const response = await fetch(`http://localhost:8000/api/v1/results/${analysisId}/bitstream`);
+                    const data = await response.json();
+                    if (!data.available) {
+                      alert(`Bitstream not available: ${data.reason}`);
+                      return;
+                    }
+                    const content = `Bitstream Export\n${'='.repeat(50)}\nTotal Bits: ${data.total_bits}\nEntropy: ${data.entropy}\nOnes Ratio: ${data.ones_ratio}\n${'='.repeat(50)}\n\n${data.bits}`;
+                    const blob = new Blob([content], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `sigma_bitstream_${analysisId.substring(0, 8)}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch (err) {
+                    console.error('Export bits failed:', err);
+                  }
+                }}
+              />
+            </motion.div>
+
+            {/* Hypothesis Explorer - Full Width */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.9 }}
               className="col-span-12 h-[500px]"
             >
               <HypothesisExplorer hypotheses={hypotheses} />

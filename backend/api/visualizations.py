@@ -164,3 +164,26 @@ async def get_parameters(signal_id: str):
         "snr": float(params.get("snr", 0.0)),
         "symbolRate": float(params.get("symbol_rate_estimate", 0.0))
     }
+
+
+@router.get("/{signal_id}/waveform")
+async def get_waveform(signal_id: str):
+    """Extract real I/Q time-domain samples from uploaded file."""
+    storage_path = await _get_signal_path(signal_id)
+    
+    loop = asyncio.get_event_loop()
+    iq_data, sample_rate = await loop.run_in_executor(None, _load_iq_data, storage_path)
+    
+    decimation = max(1, iq_data.shape[1] // 10000)
+    i_samples = iq_data[0, ::decimation][:10000]
+    q_samples = iq_data[1, ::decimation][:10000]
+    
+    time_axis = np.arange(len(i_samples)) * (decimation / sample_rate)
+    
+    return {
+        "i": i_samples.tolist(),
+        "q": q_samples.tolist(),
+        "time": time_axis.tolist(),
+        "sampleRate": float(sample_rate),
+        "decimation": int(decimation)
+    }
