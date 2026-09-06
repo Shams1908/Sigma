@@ -1,5 +1,7 @@
 """
-Future responsibility:
-FSK demodulator (non-coherent/coherent detection, symbol decoding to bits).
-Implementation will be added during the demodulation phase.
+FSK demodulator — out of scope.
+
+FSK demodulation is explicitly excluded from this implementation.
+See the project's GLOBAL CONSTRAINTS section for rationale.
 """
+# FSK demodulation is not implemented in this project phase.

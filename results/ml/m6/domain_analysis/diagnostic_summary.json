@@ -1,0 +1,33 @@
+{
+    "model_integrity": {
+        "initial_md5_hash": "8a69430254987d587872edd2faf9c61d",
+        "final_md5_hash": "8a69430254987d587872edd2faf9c61d",
+        "weights_frozen": true
+    },
+    "statistics": {
+        "real_samples_matched": 2500,
+        "synthetic_samples_matched": 2500,
+        "examples_per_condition": 100
+    },
+    "amplitude_check": {
+        "real_raw_rms": 0.00605636416003108,
+        "synthetic_raw_rms": 0.8523816466331482,
+        "normalized_real_rms": 1.001312255859375,
+        "normalized_synthetic_rms": 140.92617797851562
+    },
+    "domain_classifier": {
+        "train_accuracy": 1.0,
+        "val_accuracy": 1.0,
+        "splits": [
+            {
+                "feature": "amplitude_mean",
+                "importance": 1.0
+            }
+        ]
+    },
+    "prediction_collapse": {
+        "avg_entropy": 0.014777298085391521,
+        "top_predicted_class": "QPSK",
+        "top_predicted_percentage": 0.8928
+    }
+}

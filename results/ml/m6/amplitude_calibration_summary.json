@@ -1,0 +1,32 @@
+{
+    "model_integrity": {
+        "initial_md5_hash": "8a69430254987d587872edd2faf9c61d",
+        "final_md5_hash": "8a69430254987d587872edd2faf9c61d",
+        "weights_frozen": true
+    },
+    "amplitude_check": {
+        "real_training_power": 7.316694245673716e-05,
+        "real_training_rms": 0.008553767734556343,
+        "synthetic_ref_power": 0.06434843689203262,
+        "synthetic_ref_rms": 0.25366993691021533,
+        "global_scale_factor": 0.0337200688372619,
+        "calibrated_ref_power": 7.316693518077955e-05,
+        "calibrated_ref_rms": 0.008553767309249156
+    },
+    "overall_performance": {
+        "original_accuracy": 0.22177777777777777,
+        "original_macro_f1": 0.12442709235228304,
+        "calibrated_accuracy": 0.2756111111111111,
+        "calibrated_macro_f1": 0.198926982604524,
+        "delta_accuracy": 0.053833333333333316,
+        "delta_macro_f1": 0.07449989025224095
+    },
+    "prediction_collapse": {
+        "original_entropy": 0.04648648574948311,
+        "calibrated_entropy": 1.2036582231521606,
+        "top_original_class": "QPSK",
+        "top_original_percentage": 0.8928,
+        "top_calibrated_class": "QAM16",
+        "top_calibrated_percentage": 0.3878888888888889
+    }
+}

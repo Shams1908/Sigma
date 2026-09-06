@@ -1,0 +1,176 @@
+{
+    "model_state_hash": "8a69430254987d587872edd2faf9c61d",
+    "training_rms_factor": 0.00604842696338892,
+    "total_examples_evaluated": 18000,
+    "classes_evaluated": [
+        "BPSK",
+        "QPSK",
+        "8PSK",
+        "QAM16",
+        "QAM64"
+    ],
+    "evaluation_time_sec": 2.017533540725708,
+    "examples_per_second": 8921.784761766781,
+    "overall_metrics": {
+        "accuracy": 0.22177777777777777,
+        "macro_precision": 0.1745566109067991,
+        "macro_recall": 0.2217777777777778,
+        "macro_f1": 0.12442709235228304,
+        "weighted_f1": 0.12442709235228305
+    },
+    "snr_performance": [
+        {
+            "snr": -20,
+            "accuracy": 0.198,
+            "macro_f1": 0.06991991991991993,
+            "support": 500
+        },
+        {
+            "snr": -10,
+            "accuracy": 0.2,
+            "macro_f1": 0.0667779632721202,
+            "support": 500
+        },
+        {
+            "snr": 0,
+            "accuracy": 0.2,
+            "macro_f1": 0.06666666666666667,
+            "support": 500
+        },
+        {
+            "snr": 10,
+            "accuracy": 0.208,
+            "macro_f1": 0.09322451094701387,
+            "support": 500
+        },
+        {
+            "snr": 18,
+            "accuracy": 0.23,
+            "macro_f1": 0.12882175099877685,
+            "support": 500
+        }
+    ],
+    "representative_conditions_per_class": {
+        "Clean Reference (SNR = 18 dB)": [
+            {
+                "class_name": "BPSK",
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
+                "support": 100
+            },
+            {
+                "class_name": "QPSK",
+                "precision": 0.2915451895043732,
+                "recall": 1.0,
+                "f1_score": 0.45146726862302483,
+                "support": 100
+            },
+            {
+                "class_name": "8PSK",
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
+                "support": 100
+            },
+            {
+                "class_name": "QAM16",
+                "precision": 0.22580645161290322,
+                "recall": 0.14,
+                "f1_score": 0.1728395061728395,
+                "support": 100
+            },
+            {
+                "class_name": "QAM64",
+                "precision": 1.0,
+                "recall": 0.01,
+                "f1_score": 0.019801980198019802,
+                "support": 100
+            }
+        ],
+        "AWGN (SNR = 0 dB)": [
+            {
+                "class_name": "BPSK",
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
+                "support": 100
+            },
+            {
+                "class_name": "QPSK",
+                "precision": 0.2,
+                "recall": 1.0,
+                "f1_score": 0.3333333333333333,
+                "support": 100
+            },
+            {
+                "class_name": "8PSK",
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
+                "support": 100
+            },
+            {
+                "class_name": "QAM16",
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
+                "support": 100
+            },
+            {
+                "class_name": "QAM64",
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
+                "support": 100
+            }
+        ],
+        "Frequency Offset (10 kHz)": [
+            {
+                "class_name": "BPSK",
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
+                "support": 100
+            },
+            {
+                "class_name": "QPSK",
+                "precision": 0.12781954887218044,
+                "recall": 0.34,
+                "f1_score": 0.18579234972677597,
+                "support": 100
+            },
+            {
+                "class_name": "8PSK",
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
+                "support": 100
+            },
+            {
+                "class_name": "QAM16",
+                "precision": 0.17937219730941703,
+                "recall": 0.4,
+                "f1_score": 0.2476780185758514,
+                "support": 100
+            },
+            {
+                "class_name": "QAM64",
+                "precision": 0.2727272727272727,
+                "recall": 0.03,
+                "f1_score": 0.05405405405405406,
+                "support": 100
+            }
+        ]
+    },
+    "leakage_audit": {
+        "m5_checkpoint_modified": false,
+        "parameters_updated_during_evaluation": false,
+        "training_occurred": false,
+        "fine_tuning_occurred": false,
+        "synthetic_data_affected_preprocessing": false,
+        "synthetic_data_affected_checkpoint_selection": false,
+        "real_test_results_unchanged": true,
+        "model_integrity_passed": true
+    }
+}
