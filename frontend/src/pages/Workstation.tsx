@@ -502,17 +502,9 @@ export default function Workstation() {
                 onExportReport={async () => {
                   if (!analysisId) return;
                   try {
-                    const response = await fetch(`http://localhost:8000/api/v1/results/${analysisId}/report`);
-                    const data = await response.json();
-                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `sigma_report_${analysisId.substring(0, 8)}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    window.open(`http://localhost:8000/api/v1/results/${analysisId}/pdf`, '_blank');
                   } catch (err) {
-                    console.error('Export report failed:', err);
+                    console.error('Export PDF failed:', err);
                   }
                 }}
                 onExportJSON={async () => {

@@ -59,7 +59,7 @@ export default function ExportToolbar({
       
       <div className="flex items-center gap-3">
         <ExportButton 
-          label="REPORT" 
+          label="PDF" 
           icon="📄" 
           onClick={onExportReport} 
         />
