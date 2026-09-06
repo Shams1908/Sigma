@@ -8,6 +8,7 @@ interface DiagnosticsPanelProps {
   fecValid: boolean;
   snr: number;
   carrierOffset: number;
+  failureReason?: string;
 }
 
 export default function DiagnosticsPanel({
@@ -17,7 +18,8 @@ export default function DiagnosticsPanel({
   demodLocked,
   fecValid,
   snr,
-  carrierOffset
+  carrierOffset,
+  failureReason
 }: DiagnosticsPanelProps) {
   
   const StatusIndicator = ({ locked, label }: { locked: boolean; label: string }) => (
@@ -81,6 +83,15 @@ export default function DiagnosticsPanel({
         <MetricRow label="SNR" value={snr} unit="dB" />
         <MetricRow label="CARRIER OFFSET" value={carrierOffset} unit="Hz" />
       </div>
+
+      {failureReason && (
+        <div className="mt-4 pt-4 border-t border-[#222222]">
+          <div className="text-red-400 text-[10px] font-mono uppercase tracking-wider mb-2">FAILURE REASON</div>
+          <div className="text-gray-400 text-xs leading-relaxed bg-red-950/20 border border-red-900/30 rounded p-2">
+            {failureReason}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

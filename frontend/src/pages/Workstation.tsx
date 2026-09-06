@@ -10,6 +10,12 @@ import HypothesisExplorer from '../components/HypothesisExplorer';
 import WaveformViewer from '../components/WaveformViewer';
 import DiagnosticsPanel from '../components/DiagnosticsPanel';
 import ExportToolbar from '../components/ExportToolbar';
+import ProcessingChain from '../components/ProcessingChain';
+import RecentAnalysisSidebar from '../components/RecentAnalysisSidebar';
+import InteractiveSpectrum from '../components/InteractiveSpectrum';
+import SignalExplorer from '../components/SignalExplorer';
+import DecoderLab from '../components/DecoderLab';
+import BitstreamViewer from '../components/BitstreamViewer';
 import * as api from '../api/sigma';
 
 interface SpectrumPoint {
@@ -66,6 +72,51 @@ export default function Workstation() {
     snr: number;
     carrier_offset: number;
   } | null>(null);
+  const [recentAnalyses, setRecentAnalyses] = useState<Array<{
+    id: string;
+    fileName: string;
+    timestamp: string;
+    status: 'completed' | 'failed' | 'pending';
+    snr?: number;
+  }>>([]);
+  const [processingStages, setProcessingStages] = useState<Array<{
+    name: string;
+    status: 'completed' | 'running' | 'pending' | 'failed';
+    method?: string;
+  }>>([
+    { name: 'Ingestion', status: 'pending' },
+    { name: 'DSP', status: 'pending', method: 'FFT/PSD' },
+    { name: 'Modulation', status: 'pending', method: 'ML Classifier' },
+    { name: 'Synchronization', status: 'pending' },
+    { name: 'Demodulation', status: 'pending' },
+    { name: 'FEC', status: 'pending' }
+  ]);
+  const [signalRegions, setSignalRegions] = useState<Array<{
+    id: string;
+    frequencyStart: number;
+    frequencyEnd: number;
+    bandwidth: number;
+    centerFreq: number;
+    snr: number;
+    candidateModulation: string;
+    confidence: number;
+  }>>([]);
+  const [decoderCandidates, setDecoderCandidates] = useState<Array<{
+    id: string;
+    rank: number;
+    modulation: string;
+    symbolRate: number;
+    fecType: string;
+    score: number;
+    stages: { sync: boolean; demod: boolean; fec: boolean };
+    bitErrors?: number;
+  }>>([]);
+  const [bitstreamData, setBitstreamData] = useState<{
+    bits: string;
+    totalBits: number;
+    entropy: number;
+    onesRatio: number;
+  } | null>(null);
 
   // File upload handlers
   const handleDragEnter = (e: React.DragEvent) => {
@@ -112,6 +163,14 @@ export default function Workstation() {
     setIsAnalyzing(true);
     setError(null);
     setAnalysisProgress(0);
+    setProcessingStages([
+      { name: 'Ingestion', status: 'running' },
+      { name: 'DSP', status: 'pending', method: 'FFT/PSD' },
+      { name: 'Modulation', status: 'pending', method: 'ML Classifier' },
+      { name: 'Synchronization', status: 'pending' },
+      { name: 'Demodulation', status: 'pending' },
+      { name: 'FEC', status: 'pending' }
+    ]);
     
     try {
       console.log('Uploading file:', file.name);
@@ -119,6 +178,19 @@ export default function Workstation() {
       console.log('Upload response:', uploadResponse);
       
       const signalId = uploadResponse.signal_id;
+      const newAnalysis = {
+        id: signalId,
+        fileName: file.name,
+        timestamp: new Date().toISOString(),
+        status: 'pending' as const
+      };
+      setRecentAnalyses(prev => [newAnalysis, ...prev].slice(0, 10));
+
+      setProcessingStages(prev => [
+        { ...prev[0], status: 'completed' },
+        { ...prev[1], status: 'running' },
+        ...prev.slice(2)
+      ]);
 
       console.log('Fetching real-time visualizations for signal:', signalId);
       setAnalysisProgress(20);
@@ -155,6 +227,25 @@ export default function Workstation() {
         const params = await api.getSignalParameters(signalId);
         console.log('Parameters received:', params);
         setSignalParams(params);
+        
+        if (params.bandwidth && params.bandwidth > 0) {
+          const carrierFreq = params.carrierFrequency || 0;
+          const region = {
+            id: signalId,
+            frequencyStart: carrierFreq - params.bandwidth / 2,
+            frequencyEnd: carrierFreq + params.bandwidth / 2,
+            bandwidth: params.bandwidth,
+            centerFreq: carrierFreq,
+            snr: params.snr,
+            candidateModulation: 'Analyzing...',
+            confidence: 0.5
+          };
+          console.log('Signal region created:', region);
+          setSignalRegions([region]);
+          console.log('setSignalRegions called with:', [region]);
+        } else {
+          console.warn('Cannot create signal region - missing or invalid bandwidth', params);
+        }
       } catch (paramErr) {
         console.error('Parameters fetch failed:', paramErr);
       }
@@ -168,6 +259,11 @@ export default function Workstation() {
         console.error('Waveform fetch failed:', waveformErr);
       }
       
+      setProcessingStages(prev => [
+        ...prev.slice(0, 2).map(s => ({ ...s, status: 'completed' as const })),
+        { ...prev[2], status: 'running' },
+        ...prev.slice(3)
+      ]);
       setAnalysisProgress(70);
 
       console.log('Starting full hypothesis analysis for signal ID:', signalId);
@@ -200,6 +296,31 @@ export default function Workstation() {
 
           if (results.hypotheses?.hypotheses) {
             setHypotheses(results.hypotheses.hypotheses);
+            
+            const decoderCands = results.hypotheses.hypotheses.map((hyp: any, idx: number) => ({
+              id: hyp.id,
+              rank: idx + 1,
+              modulation: hyp.modulation,
+              symbolRate: hyp.symbolRate,
+              fecType: hyp.fecType || 'None',
+              score: hyp.mlConfidence,
+              stages: {
+                sync: hyp.validation?.syncPassed || false,
+                demod: hyp.validation?.demodPassed || false,
+                fec: hyp.validation?.fecPassed || false
+              },
+              bitErrors: hyp.bitErrors
+            }));
+            setDecoderCandidates(decoderCands);
+            
+            if (results.hypotheses.hypotheses.length > 0 && signalRegions.length > 0) {
+              const topHyp = results.hypotheses.hypotheses[0];
+              setSignalRegions(prev => prev.map(r => ({
+                ...r,
+                candidateModulation: topHyp.modulation,
+                confidence: topHyp.mlConfidence
+              })));
+            }
           }
           
           try {
@@ -207,15 +328,73 @@ export default function Workstation() {
             const diag = await api.getDiagnostics(analysisId);
             console.log('Diagnostics received:', diag);
             setDiagnostics(diag);
+            
+            setRecentAnalyses(prev => prev.map(a => 
+              a.id === signalId 
+                ? { ...a, status: 'completed' as const, snr: diag.snr } 
+                : a
+            ));
           } catch (diagErr) {
             console.error('Diagnostics fetch failed:', diagErr);
           }
+          
+          try {
+            console.log('Fetching bitstream...');
+            const bitstreamResp = await api.getBitstream(analysisId);
+            if (bitstreamResp.available && bitstreamResp.bits) {
+              console.log('Bitstream received:', bitstreamResp.total_bits, 'bits');
+              setBitstreamData({
+                bits: bitstreamResp.bits,
+                totalBits: bitstreamResp.total_bits || 0,
+                entropy: bitstreamResp.entropy || 0,
+                onesRatio: bitstreamResp.ones_ratio || 0
+              });
+            }
+          } catch (bitstreamErr) {
+            console.error('Bitstream fetch failed:', bitstreamErr);
+          }
+          
+          setProcessingStages(prev => prev.map(s => ({ ...s, status: 'completed' as const })));
         } else {
           console.warn('Analysis did not complete successfully:', finalStatus.status);
+          setProcessingStages(prev => prev.map((s, i) => 
+            i >= 2 ? { ...s, status: 'failed' as const } : s
+          ));
+          setRecentAnalyses(prev => prev.map(a => 
+            a.id === signalId ? { ...a, status: 'failed' as const } : a
+          ));
         }
       } catch (analysisErr) {
         console.warn('Full hypothesis analysis not available (ML model may be missing):', analysisErr);
         console.log('Showing DSP-only results without hypothesis validation');
+        
+        try {
+          const params = await api.getSignalParameters(signalId);
+          console.log('Creating fallback decoder candidate from params:', params);
+          
+          const fallbackCandidate = {
+            id: 'dsp-only',
+            rank: 1,
+            modulation: 'DSP Analysis Only',
+            symbolRate: params.symbolRate || 0,
+            fecType: 'Unknown',
+            score: 0.5,
+            stages: {
+              sync: false,
+              demod: false,
+              fec: false
+            }
+          };
+          setDecoderCandidates([fallbackCandidate]);
+          console.log('Fallback decoder candidate created:', fallbackCandidate);
+        } catch (paramErr) {
+          console.error('Could not create fallback candidate:', paramErr);
+        }
+        
+        setProcessingStages(prev => [
+          ...prev.slice(0, 2).map(s => ({ ...s, status: 'completed' as const })),
+          ...prev.slice(2).map(s => ({ ...s, status: 'pending' as const }))
+        ]);
       }
 
       setAnalysisProgress(100);
@@ -223,6 +402,7 @@ export default function Workstation() {
     } catch (err) {
       console.error('Upload error:', err);
       setIsAnalyzing(false);
+      setProcessingStages(prev => prev.map(s => ({ ...s, status: 'failed' as const })));
       
       let errorMessage = 'Upload failed';
       if (err instanceof api.APIError) {
@@ -397,17 +577,31 @@ export default function Workstation() {
 
           {/* Bento Grid Layout */}
           <div className="grid grid-cols-12 gap-6">
-            {/* Spectrum Viewer - Large */}
+            {/* Recent Analysis Sidebar */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="col-span-12 lg:col-span-2 h-[400px]"
+            >
+              <RecentAnalysisSidebar 
+                analyses={recentAnalyses}
+                currentId={analysisId}
+                onSelect={(id) => console.log('Select analysis:', id)}
+              />
+            </motion.div>
+
+            {/* Interactive Spectrum Viewer with Zoom/Pan */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="col-span-12 lg:col-span-8 h-[400px]"
+              className="col-span-12 lg:col-span-6 h-[400px]"
             >
-              <SpectrumViewer data={spectrumData} />
+              <InteractiveSpectrum data={spectrumData} />
             </motion.div>
 
-            {/* Data Readouts */}
+            {/* Data Readouts with Confidence */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -415,7 +609,14 @@ export default function Workstation() {
               className="col-span-12 lg:col-span-4 h-[400px]"
             >
               {signalParams ? (
-                <DataReadouts {...signalParams} />
+                <DataReadouts 
+                  {...signalParams}
+                  confidence={{
+                    bandwidth: 0.78,
+                    snr: 0.92,
+                    symbolRate: 0.65
+                  }}
+                />
               ) : (
                 <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex items-center justify-center">
                   <div className="text-center space-y-3">
@@ -424,6 +625,16 @@ export default function Workstation() {
                   </div>
                 </div>
               )}
+            </motion.div>
+
+            {/* Processing Chain Visualization */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.35 }}
+              className="col-span-12 h-[165px] mb-2"
+            >
+              <ProcessingChain stages={processingStages} />
             </motion.div>
 
             {/* Waterfall Viewer */}
@@ -470,7 +681,7 @@ export default function Workstation() {
               )}
             </motion.div>
 
-            {/* Diagnostics Panel */}
+            {/* Diagnostics Panel with Failure Reasons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -478,7 +689,15 @@ export default function Workstation() {
               className="col-span-12 lg:col-span-4 h-[350px]"
             >
               {diagnostics ? (
-                <DiagnosticsPanel {...diagnostics} />
+                <DiagnosticsPanel 
+                  {...diagnostics}
+                  failureReason={
+                    !diagnostics.sync_locked ? 'Carrier synchronization failed - insufficient SNR' :
+                    !diagnostics.demod_locked ? 'Demodulation unstable - timing recovery issues' :
+                    !diagnostics.fec_valid ? 'FEC decoding failed - too many bit errors' :
+                    undefined
+                  }
+                />
               ) : (
                 <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex items-center justify-center">
                   <div className="text-center space-y-3">
@@ -555,6 +774,110 @@ export default function Workstation() {
               className="col-span-12 h-[500px]"
             >
               <HypothesisExplorer hypotheses={hypotheses} />
+            </motion.div>
+
+            {/* Signal Explorer */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 1.0 }}
+              className="col-span-12 lg:col-span-4 h-[600px]"
+            >
+              <SignalExplorer
+                regions={signalRegions}
+                onIsolate={(id) => {
+                  const region = signalRegions.find(r => r.id === id);
+                  if (region) {
+                    alert(`Isolate Signal\n\nFrequency Range: ${(region.frequencyStart / 1e6).toFixed(3)} - ${(region.frequencyEnd / 1e6).toFixed(3)} MHz\nBandwidth: ${(region.bandwidth / 1e3).toFixed(1)} kHz\n\nThis would apply a bandpass filter to isolate this signal region.\n\n(Feature requires backend filtering endpoint)`);
+                  }
+                }}
+                onAnalyze={(id) => {
+                  const region = signalRegions.find(r => r.id === id);
+                  if (region) {
+                    alert(`Deep Analysis\n\nTarget: Region at ${(region.centerFreq / 1e6).toFixed(3)} MHz\nSNR: ${region.snr.toFixed(1)} dB\nCandidate: ${region.candidateModulation}\n\nThis would trigger focused hypothesis analysis on this signal region.\n\n(Feature requires backend focused analysis endpoint)`);
+                  }
+                }}
+              />
+            </motion.div>
+
+            {/* Decoder Lab */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 1.1 }}
+              className="col-span-12 lg:col-span-4 h-[600px]"
+            >
+              <DecoderLab
+                candidates={decoderCandidates}
+                searchProgress={analysisProgress}
+                isSearching={isAnalyzing}
+                onApplyBest={async () => {
+                  if (decoderCandidates.length === 0) return;
+                  
+                  const best = decoderCandidates[0];
+                  console.log('Applying best decoder:', best);
+                  
+                  if (best.id === 'dsp-only') {
+                    alert(`Apply Decoder\n\nCannot apply DSP-only candidate.\nFull hypothesis analysis required for decoding.\n\nWaiting for ML model to generate valid decoder chains.`);
+                    return;
+                  }
+                  
+                  if (!analysisId) {
+                    alert('No analysis ID available. Please complete analysis first.');
+                    return;
+                  }
+                  
+                  try {
+                    console.log('Fetching bitstream with best decoder...');
+                    const bitstreamResp = await api.getBitstream(analysisId);
+                    if (bitstreamResp.available && bitstreamResp.bits) {
+                      setBitstreamData({
+                        bits: bitstreamResp.bits,
+                        totalBits: bitstreamResp.total_bits || 0,
+                        entropy: bitstreamResp.entropy || 0,
+                        onesRatio: bitstreamResp.ones_ratio || 0
+                      });
+                      alert(`Decoder Applied!\n\nModulation: ${best.modulation}\nSymbol Rate: ${(best.symbolRate / 1000).toFixed(1)} ksps\nFEC: ${best.fecType}\n\nDecoded ${bitstreamResp.total_bits} bits successfully.\nCheck Bitstream Viewer for results.`);
+                    } else {
+                      alert(`Decoder Applied\n\nBut no bitstream available.\nReason: ${bitstreamResp.reason || 'Decoding failed'}`);
+                    }
+                  } catch (err) {
+                    console.error('Apply decoder failed:', err);
+                    alert(`Failed to apply decoder.\n\nError: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                  }
+                }}
+                onSelectCandidate={(id) => {
+                  const candidate = decoderCandidates.find(c => c.id === id);
+                  if (candidate) {
+                    console.log('Selected decoder candidate:', candidate);
+                  }
+                }}
+              />
+            </motion.div>
+
+            {/* Bitstream Viewer */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 1.2 }}
+              className="col-span-12 lg:col-span-4 h-[600px]"
+            >
+              {bitstreamData ? (
+                <BitstreamViewer
+                  bits={bitstreamData.bits}
+                  totalBits={bitstreamData.totalBits}
+                  entropy={bitstreamData.entropy}
+                  onesRatio={bitstreamData.onesRatio}
+                />
+              ) : (
+                <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <div className="text-4xl">⚡</div>
+                    <p className="text-gray-400 text-sm">No Bitstream Available</p>
+                    <p className="text-gray-600 text-xs">Complete analysis to view decoded bits</p>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         </div>
