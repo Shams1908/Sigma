@@ -423,7 +423,7 @@ export default function Workstation() {
   return (
     <div className="relative min-h-screen bg-black text-white">
       {/* WebGL Topography Background */}
-      <div className="fixed inset-0 z-0 opacity-30">
+      <div className="fixed inset-0 z-0">
         <Topography
           lowColor="#0a0014"
           midColor="#6d28d9"
@@ -434,12 +434,6 @@ export default function Workstation() {
           glow={0.5}
           pixelSize={1.0}
           mouseInteraction={false}
-        />
-        <div 
-          className="absolute inset-0" 
-          style={{
-            background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 70%, rgb(0,0,0) 100%)'
-          }}
         />
       </div>
 
