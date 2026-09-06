@@ -27,23 +27,21 @@ export default function ExportToolbar({
     icon: string; 
     onClick: () => void;
   }) => (
-    <motion.button
+    <button
       onClick={onClick}
       disabled={disabled}
-      whileHover={disabled ? {} : { scale: 1.02 }}
-      whileTap={disabled ? {} : { scale: 0.98 }}
       className={`
         px-4 py-2 rounded-lg font-mono text-xs flex items-center gap-2
         transition-all duration-200
         ${disabled 
           ? 'bg-[#1a1a1a] text-gray-600 cursor-not-allowed border border-[#222222]' 
-          : 'bg-[#0A0A0A] text-cyan-400 border border-cyan-900 hover:border-cyan-500 hover:bg-cyan-950/20'
+          : 'bg-[#0A0A0A] text-cyan-400 border border-cyan-900 hover:border-cyan-500 hover:bg-cyan-950/20 active:scale-95'
         }
       `}
     >
       <span>{icon}</span>
       <span>{label}</span>
-    </motion.button>
+    </button>
   );
 
   return (
