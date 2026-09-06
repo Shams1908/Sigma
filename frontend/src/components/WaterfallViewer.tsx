@@ -176,21 +176,21 @@ export default function WaterfallViewer({ data, isLive = false }: WaterfallViewe
 
   if (!data.length) {
     return (
-      <div ref={containerRef} className="w-full h-full flex items-center justify-center bg-slate-900/50 rounded-xl border border-slate-700">
+      <div ref={containerRef} className="w-full h-full flex items-center justify-center bg-[#0A0A0A] rounded-2xl border border-[#222222]">
         <p className="text-slate-500 font-mono text-sm">NO WATERFALL DATA</p>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full bg-slate-900/50 rounded-xl border border-slate-700 p-4 relative">
+    <div ref={containerRef} className="w-full h-full bg-[#0A0A0A] rounded-2xl border border-[#222222] p-4 relative hover:border-sigma-teal-900 transition-colors duration-300">
       <div className="absolute top-4 left-4 z-10">
-        <div className="text-teal-400 font-mono text-xs tracking-wider">WATERFALL</div>
+        <div className="text-sigma-teal font-mono text-xs tracking-wider uppercase">WATERFALL</div>
       </div>
       {isLive && (
         <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-          <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></div>
-          <span className="text-xs font-mono text-teal-400">LIVE</span>
+          <div className="w-2 h-2 bg-sigma-teal rounded-full animate-pulse"></div>
+          <span className="text-xs font-mono text-sigma-teal uppercase">LIVE</span>
         </div>
       )}
       <canvas

@@ -1,19 +1,17 @@
-import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingView from './pages/LandingView';
-import AnalysisDashboard from './pages/AnalysisDashboard';
+import Workstation from './pages/Workstation';
 
-type View = 'landing' | 'dashboard';
-
-export default function App() {
-  const [currentView, setCurrentView] = useState<View>('landing');
-
+function App() {
   return (
-    <div className="min-h-screen">
-      {currentView === 'landing' ? (
-        <LandingView onLaunch={() => setCurrentView('dashboard')} />
-      ) : (
-        <AnalysisDashboard onBack={() => setCurrentView('landing')} />
-      )}
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingView onLaunch={() => window.location.href = '/workstation'} />} />
+        <Route path="/workstation" element={<Workstation />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
+
+export default App;

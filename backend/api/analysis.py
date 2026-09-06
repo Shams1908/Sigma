@@ -330,3 +330,119 @@ async def get_analysis_status(analysis_id: str):
         completed_at=entry.get("completed_at"),
         error_message=entry.get("error_message"),
     )
+
+
+@router.get("/{signal_id}/visualizations")
+async def get_visualizations(signal_id: str):
+    """
+    Return mock visualization data (spectrum, waterfall, constellation)
+    for frontend display. This is temporary mock data for MVP.
+    """
+    import math
+    import random
+    
+    # Mock spectrum data (FFT-like)
+    spectrum = []
+    for i in range(512):
+        freq = (i - 256) / 512.0 * 2.4e6  # ±1.2 MHz around center
+        # Gaussian peak at center + noise floor
+        signal_component = 40 * math.exp(-(freq ** 2) / (2 * (200000 ** 2)))
+        noise = random.uniform(-80, -70)
+        magnitude = signal_component + noise
+        spectrum.append({"frequency": freq, "magnitudeDb": magnitude})
+    
+    # Mock waterfall data (time-frequency matrix)
+    waterfall = []
+    for t in range(100):  # 100 time slices
+        row = []
+        for f in range(256):  # 256 frequency bins
+            # Create a signal at center with some drift
+            center_offset = math.sin(t * 0.1) * 20
+            distance = abs(f - 128 - center_offset)
+            signal_val = 40 * math.exp(-(distance ** 2) / 200) if distance < 50 else random.uniform(-80, -70)
+            row.append(signal_val)
+        waterfall.append(row)
+    
+    # Mock constellation data (QPSK-like)
+    constellation = []
+    points = [
+        (0.7, 0.7), (-0.7, 0.7), (-0.7, -0.7), (0.7, -0.7)  # QPSK ideal points
+    ]
+    for _ in range(500):
+        base = random.choice(points)
+        i_val = base[0] + random.gauss(0, 0.1)
+        q_val = base[1] + random.gauss(0, 0.1)
+        constellation.append({"i": i_val, "q": q_val})
+    
+    return {
+        "spectrum": spectrum,
+        "waterfall": waterfall,
+        "constellation": constellation
+    }
+
+
+@router.get("/{signal_id}/mock-results")
+async def get_mock_results(signal_id: str):
+    """
+    Return mock analysis results matching frontend expectations.
+    Temporary endpoint for MVP frontend development.
+    """
+    return {
+        "parameters": {
+            "carrierFrequency": 915.0e6,
+            "sampleRate": 2.4e6,
+            "bandwidth": 500000.0,
+            "snr": 18.5,
+            "symbolRate": 125000.0
+        },
+        "hypotheses": [
+            {
+                "id": "hyp-1",
+                "modulation": "QPSK",
+                "symbolRate": 125000.0,
+                "mlConfidence": 0.89,
+                "validation": {
+                    "syncPassed": True,
+                    "demodPassed": True,
+                    "fecPassed": True
+                },
+                "isWinner": True
+            },
+            {
+                "id": "hyp-2",
+                "modulation": "BPSK",
+                "symbolRate": 125000.0,
+                "mlConfidence": 0.65,
+                "validation": {
+                    "syncPassed": True,
+                    "demodPassed": True,
+                    "fecPassed": False
+                },
+                "isWinner": False
+            },
+            {
+                "id": "hyp-3",
+                "modulation": "8PSK",
+                "symbolRate": 125000.0,
+                "mlConfidence": 0.42,
+                "validation": {
+                    "syncPassed": True,
+                    "demodPassed": False,
+                    "fecPassed": False
+                },
+                "isWinner": False
+            },
+            {
+                "id": "hyp-4",
+                "modulation": "16QAM",
+                "symbolRate": 125000.0,
+                "mlConfidence": 0.28,
+                "validation": {
+                    "syncPassed": False,
+                    "demodPassed": False,
+                    "fecPassed": False
+                },
+                "isWinner": False
+            }
+        ]
+    }

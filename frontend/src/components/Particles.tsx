@@ -43,7 +43,7 @@ export default function Particles() {
     let animationId: number;
 
     const animate = () => {
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.15)';
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.1)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       particles.forEach(p => {
@@ -90,7 +90,8 @@ export default function Particles() {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none"
+      className="fixed inset-0 w-full h-full pointer-events-none"
+      style={{ zIndex: 0 }}
     />
   );
 }

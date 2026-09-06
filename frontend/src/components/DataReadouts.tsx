@@ -35,8 +35,8 @@ export default function DataReadouts({
   ];
 
   return (
-    <div className="bg-slate-900/50 rounded-xl border border-slate-700 p-6">
-      <div className="text-teal-400 font-mono text-xs tracking-wider mb-4">SIGNAL PARAMETERS</div>
+    <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 hover:border-sigma-teal-900 transition-colors duration-300">
+      <div className="text-sigma-teal font-mono text-xs tracking-wider mb-4 uppercase">SIGNAL PARAMETERS</div>
       <div className="space-y-4">
         {readouts.map((item, i) => (
           <div key={i} className="flex justify-between items-baseline">

@@ -120,21 +120,21 @@ export default function SpectrumViewer({ data }: SpectrumViewerProps) {
 
   if (!data.length) {
     return (
-      <div ref={containerRef} className="w-full h-full flex items-center justify-center bg-slate-900/50 rounded-xl border border-slate-700">
+      <div ref={containerRef} className="w-full h-full flex items-center justify-center bg-[#0A0A0A] rounded-2xl border border-[#222222]">
         <p className="text-slate-500 font-mono text-sm">NO SPECTRUM DATA</p>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full bg-slate-900/50 rounded-xl border border-slate-700 p-4 relative">
+    <div ref={containerRef} className="w-full h-full bg-[#0A0A0A] rounded-2xl border border-[#222222] p-4 relative hover:border-sigma-teal-900 transition-colors duration-300">
       <div className="absolute top-4 left-4 z-10">
-        <div className="text-teal-400 font-mono text-xs tracking-wider">SPECTRUM</div>
+        <div className="text-sigma-teal font-mono text-xs tracking-wider uppercase">SPECTRUM</div>
       </div>
       {peakInfo && (
-        <div className="absolute top-4 right-4 z-10 bg-slate-800/80 backdrop-blur-sm px-3 py-1.5 rounded border border-teal-500/30">
-          <div className="text-xs font-mono text-slate-400">PEAK</div>
-          <div className="text-sm font-mono text-teal-400">
+        <div className="absolute top-4 right-4 z-10 bg-[#0A0A0A] border border-sigma-teal/30 px-3 py-1.5 rounded">
+          <div className="text-xs font-mono text-slate-400 uppercase">PEAK</div>
+          <div className="text-sm font-mono text-sigma-teal">
             {peakInfo.freq >= 1e6 ? `${(peakInfo.freq / 1e6).toFixed(2)} MHz` : `${(peakInfo.freq / 1e3).toFixed(2)} kHz`} / {peakInfo.mag.toFixed(1)} dB
           </div>
         </div>
