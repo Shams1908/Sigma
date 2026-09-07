@@ -20,6 +20,13 @@ export default function InteractiveSpectrum({ data }: InteractiveSpectrumProps) 
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
+    if (!isFocused) {
+      setZoom(1);
+      setPan(0);
+    }
+  }, [data.length, isFocused]);
+
+  useEffect(() => {
     if (!data.length || !canvasRef.current) return;
 
     const canvas = canvasRef.current;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo, useState, memo } from 'react';
 import FocusMode from './FocusMode';
 
 interface ConstellationPoint {
@@ -10,9 +10,12 @@ interface ConstellationViewerProps {
   data: ConstellationPoint[];
 }
 
-export default function ConstellationViewer({ data }: ConstellationViewerProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
+const MAX_DISPLAY_POINTS = 2500;
+
+const ConstellationViewer = memo(function ConstellationViewer({ data }: ConstellationViewerProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const animFrameRef = useRef<number | null>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -20,32 +23,194 @@ export default function ConstellationViewer({ data }: ConstellationViewerProps) 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  const { width, height, scale, extent } = useMemo(() => {
-    if (!data.length) return { width: 400, height: 400, scale: (v: number) => v, extent: 1 };
+  const displayData = useMemo(() => {
+    if (data.length <= MAX_DISPLAY_POINTS) return data;
+    const stride = Math.ceil(data.length / MAX_DISPLAY_POINTS);
+    const downsampled: ConstellationPoint[] = [];
+    for (let i = 0; i < data.length; i += stride) {
+      downsampled.push(data[i]);
+    }
+    return downsampled;
+  }, [data]);
+
+  const { width, height, extent } = useMemo(() => {
+    if (!displayData.length) return { width: 400, height: 400, extent: 1 };
 
     const w = isFocused ? 1000 : 400;
     const h = isFocused ? 1000 : 400;
-    const margin = isFocused ? 80 : 40;
-    const innerSize = Math.min(w, h) - 2 * margin;
 
-    const iValues = data.map(d => d.i);
-    const qValues = data.map(d => d.q);
+    const iValues = displayData.map(d => d.i);
+    const qValues = displayData.map(d => d.q);
     const maxI = Math.max(...iValues.map(Math.abs));
     const maxQ = Math.max(...qValues.map(Math.abs));
     const baseExtent = Math.max(maxI, maxQ) * 1.25;
-    
-    const viewExtent = baseExtent / zoomLevel;
-    const centerI = panOffset.x * baseExtent;
-    const centerQ = panOffset.y * baseExtent;
 
-    const scale = (v: number, isQ: boolean = false) => {
-      const offset = isQ ? centerQ : centerI;
-      const relativeV = v - offset;
-      return margin + innerSize / 2 + (relativeV / viewExtent) * (innerSize / 2);
+    return { width: w, height: h, extent: baseExtent };
+  }, [displayData, isFocused]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setZoomLevel(1);
+      setPanOffset({ x: 0, y: 0 });
+    }
+  }, [data.length, isFocused]);
+
+  const drawConstellation = (canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width;
+    const h = rect.height;
+    const margin = isFocused ? 80 : 40;
+    const innerSize = Math.min(w, h) - 2 * margin;
+    const centerX = w / 2;
+    const centerY = h / 2;
+
+    const viewExtent = extent / zoomLevel;
+    const centerI = panOffset.x * viewExtent;
+    const centerQ = panOffset.y * viewExtent;
+
+    const scaleX = (v: number) => {
+      const relativeV = v - centerI;
+      return centerX + (relativeV / viewExtent) * (innerSize / 2);
     };
 
-    return { width: w, height: h, scale, extent: viewExtent };
-  }, [data, isFocused, zoomLevel, panOffset]);
+    const scaleY = (v: number) => {
+      const relativeV = v - centerQ;
+      return centerY - (relativeV / viewExtent) * (innerSize / 2);
+    };
+
+    ctx.fillStyle = '#0A0A0A';
+    ctx.fillRect(0, 0, w, h);
+
+    if (isFocused) {
+      ctx.strokeStyle = 'rgb(30, 30, 30)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      for (let i = 0; i <= 20; i++) {
+        const val = -extent + (i / 20) * 2 * extent + panOffset.x * extent * zoomLevel;
+        const x = scaleX(val);
+        ctx.moveTo(x, margin);
+        ctx.lineTo(x, h - margin);
+      }
+      for (let i = 0; i <= 20; i++) {
+        const val = -extent + (i / 20) * 2 * extent + panOffset.y * extent * zoomLevel;
+        const y = scaleY(val);
+        ctx.moveTo(margin, y);
+        ctx.lineTo(w - margin, y);
+      }
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = 'rgb(71, 85, 105)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(margin, centerY);
+    ctx.lineTo(w - margin, centerY);
+    ctx.moveTo(centerX, margin);
+    ctx.lineTo(centerX, h - margin);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgb(71, 85, 105)';
+    ctx.font = '10px monospace';
+    ctx.fillText('I', w - margin + 20, centerY - 8);
+    ctx.fillText('Q', centerX + 8, margin - 10);
+
+    const tickValues = isFocused ? [-0.75, -0.5, -0.25, 0.25, 0.5, 0.75] : [-0.5, 0.5];
+    ctx.strokeStyle = 'rgb(71, 85, 105)';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgb(71, 85, 105)';
+    ctx.font = '9px monospace';
+    
+    tickValues.forEach(val => {
+      const adjustedValI = val * extent + panOffset.x * extent * zoomLevel;
+      const posX = scaleX(adjustedValI);
+      ctx.beginPath();
+      ctx.moveTo(posX, centerY - 3);
+      ctx.lineTo(posX, centerY + 3);
+      ctx.stroke();
+      if (isFocused) {
+        ctx.fillText(adjustedValI.toFixed(2), posX - 12, centerY + 15);
+      }
+
+      const adjustedValQ = val * extent + panOffset.y * extent * zoomLevel;
+      const posY = scaleY(adjustedValQ);
+      ctx.beginPath();
+      ctx.moveTo(centerX - 3, posY);
+      ctx.lineTo(centerX + 3, posY);
+      ctx.stroke();
+      if (isFocused) {
+        ctx.fillText(adjustedValQ.toFixed(2), centerX - 35, posY + 4);
+      }
+    });
+
+    const pointRadius = isFocused ? Math.min(6, 2.5 * zoomLevel) : 2.5;
+    ctx.fillStyle = 'rgba(20, 184, 166, 0.7)';
+    
+    displayData.forEach(point => {
+      const x = scaleX(point.i);
+      const y = scaleY(point.q);
+      if (x >= margin && x <= w - margin && y >= margin && y <= h - margin) {
+        ctx.fillRect(x - pointRadius / 2, y - pointRadius / 2, pointRadius, pointRadius);
+      }
+    });
+
+    if (isFocused && cursor) {
+      ctx.strokeStyle = 'rgb(168, 85, 247)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(cursor.x, margin);
+      ctx.lineTo(cursor.x, h - margin);
+      ctx.moveTo(margin, cursor.y);
+      ctx.lineTo(w - margin, cursor.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!displayData.length || !canvasRef.current) return;
+    
+    if (animFrameRef.current !== null) {
+      cancelAnimationFrame(animFrameRef.current);
+    }
+
+    animFrameRef.current = requestAnimationFrame(() => {
+      if (canvasRef.current) {
+        drawConstellation(canvasRef.current);
+      }
+    });
+
+    return () => {
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, [displayData, isFocused, zoomLevel, panOffset, cursor, width, height, extent]);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (canvasRef.current) {
+        drawConstellation(canvasRef.current);
+      }
+    });
+
+    resizeObserver.observe(canvasRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [displayData, isFocused, zoomLevel, panOffset, extent]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (!isFocused) return;
@@ -60,7 +225,7 @@ export default function ConstellationViewer({ data }: ConstellationViewerProps) 
     setDragStart({ x: e.clientX, y: e.clientY });
   };
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isFocused) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -95,33 +260,24 @@ export default function ConstellationViewer({ data }: ConstellationViewerProps) 
     const centerX = width / 2;
     const centerY = height / 2;
 
-    const iVal = ((cursor.x - centerX) / (innerSize / 2)) * extent + panOffset.x * extent * zoomLevel;
-    const qVal = -((cursor.y - centerY) / (innerSize / 2)) * extent + panOffset.y * extent * zoomLevel;
+    const viewExtent = extent / zoomLevel;
+    const centerI = panOffset.x * viewExtent;
+    const centerQ = panOffset.y * viewExtent;
+
+    const iVal = ((cursor.x - centerX) / (innerSize / 2)) * viewExtent + centerI;
+    const qVal = -((cursor.y - centerY) / (innerSize / 2)) * viewExtent + centerQ;
 
     return { i: iVal, q: qVal };
   };
 
   const cursorValues = getCursorValues();
-  const pointRadius = isFocused ? Math.max(1.5, 3 / zoomLevel) : 2.5;
-
-  useEffect(() => {
-    const circles = svgRef.current?.querySelectorAll('.constellation-point');
-    circles?.forEach((circle, i) => {
-      const delay = Math.floor(i / 25) * 12;
-      (circle as SVGElement).style.animationDelay = `${delay}ms`;
-    });
-  }, [data]);
-
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const margin = isFocused ? 80 : 40;
 
   const renderConstellation = () => (
     <div className="w-full h-full relative">
-      <svg 
-        ref={svgRef} 
-        width={width} 
-        height={height} 
+      <canvas
+        ref={canvasRef}
+        width={width}
+        height={height}
         className="w-full h-full"
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
@@ -129,183 +285,7 @@ export default function ConstellationViewer({ data }: ConstellationViewerProps) 
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         style={{ cursor: isFocused ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
-      >
-        <defs>
-          <style>
-            {`
-              @keyframes constellation-emerge {
-                0% {
-                  opacity: 0;
-                  transform: scale(0);
-                }
-                100% {
-                  opacity: 0.7;
-                  transform: scale(1);
-                }
-              }
-              .constellation-point {
-                animation: constellation-emerge 0.4s ease-out forwards;
-                transform-origin: center;
-                opacity: 0;
-              }
-            `}
-          </style>
-        </defs>
-
-        {isFocused && (
-          <>
-            {Array.from({ length: 21 }, (_, i) => {
-              const val = -extent + (i / 20) * 2 * extent + panOffset.x * extent * zoomLevel;
-              const x = scale(val, false);
-              return (
-                <line
-                  key={`vgrid-${i}`}
-                  x1={x}
-                  y1={margin}
-                  x2={x}
-                  y2={height - margin}
-                  stroke="rgb(30, 30, 30)"
-                  strokeWidth="0.5"
-                />
-              );
-            })}
-            {Array.from({ length: 21 }, (_, i) => {
-              const val = -extent + (i / 20) * 2 * extent + panOffset.y * extent * zoomLevel;
-              const y = scale(val, true);
-              return (
-                <line
-                  key={`hgrid-${i}`}
-                  x1={margin}
-                  y1={y}
-                  x2={width - margin}
-                  y2={y}
-                  stroke="rgb(30, 30, 30)"
-                  strokeWidth="0.5"
-                />
-              );
-            })}
-          </>
-        )}
-
-        <line
-          x1={margin}
-          y1={centerY}
-          x2={width - margin}
-          y2={centerY}
-          stroke="rgb(71, 85, 105)"
-          strokeWidth="1.5"
-        />
-        <line
-          x1={centerX}
-          y1={margin}
-          x2={centerX}
-          y2={height - margin}
-          stroke="rgb(71, 85, 105)"
-          strokeWidth="1.5"
-        />
-
-        <text
-          x={width - margin + 20}
-          y={centerY - 8}
-          className="text-xs font-mono fill-slate-500"
-          textAnchor="middle"
-        >
-          I
-        </text>
-        <text
-          x={centerX + 8}
-          y={margin - 10}
-          className="text-xs font-mono fill-slate-500"
-          textAnchor="middle"
-        >
-          Q
-        </text>
-
-        {(isFocused ? [-0.75, -0.5, -0.25, 0.25, 0.5, 0.75] : [-0.5, 0.5]).map(val => {
-          const adjustedVal = val * extent + panOffset.x * extent * zoomLevel;
-          const pos = scale(adjustedVal, false);
-          const qAdjustedVal = val * extent + panOffset.y * extent * zoomLevel;
-          const qPos = scale(qAdjustedVal, true);
-          
-          return (
-            <g key={val}>
-              <line
-                x1={pos}
-                y1={centerY - 3}
-                x2={pos}
-                y2={centerY + 3}
-                stroke="rgb(71, 85, 105)"
-                strokeWidth="1"
-              />
-              {isFocused && (
-                <text
-                  x={pos}
-                  y={centerY + 15}
-                  className="text-[10px] font-mono fill-slate-500"
-                  textAnchor="middle"
-                >
-                  {adjustedVal.toFixed(2)}
-                </text>
-              )}
-              <line
-                x1={centerX - 3}
-                y1={qPos}
-                x2={centerX + 3}
-                y2={qPos}
-                stroke="rgb(71, 85, 105)"
-                strokeWidth="1"
-              />
-              {isFocused && (
-                <text
-                  x={centerX - 20}
-                  y={qPos + 4}
-                  className="text-[10px] font-mono fill-slate-500"
-                  textAnchor="end"
-                >
-                  {(-qAdjustedVal).toFixed(2)}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {data.map((point, i) => (
-          <circle
-            key={i}
-            className="constellation-point"
-            cx={scale(point.i, false)}
-            cy={scale(-point.q, true)}
-            r={pointRadius}
-            fill="rgb(20, 184, 166)"
-            fillOpacity="0.7"
-          />
-        ))}
-
-        {isFocused && cursor && (
-          <>
-            <line
-              x1={cursor.x}
-              y1={margin}
-              x2={cursor.x}
-              y2={height - margin}
-              stroke="rgb(168, 85, 247)"
-              strokeWidth="1"
-              strokeDasharray="4,4"
-              opacity="0.6"
-            />
-            <line
-              x1={margin}
-              y1={cursor.y}
-              x2={width - margin}
-              y2={cursor.y}
-              stroke="rgb(168, 85, 247)"
-              strokeWidth="1"
-              strokeDasharray="4,4"
-              opacity="0.6"
-            />
-          </>
-        )}
-      </svg>
+      />
       {isFocused && cursor && cursorValues && (
         <div
           className="absolute bg-[#0A0A0A] border border-sigma-purple text-xs font-mono text-white px-3 py-2 rounded pointer-events-none z-10"
@@ -336,7 +316,7 @@ export default function ConstellationViewer({ data }: ConstellationViewerProps) 
 
   return (
     <>
-      <div ref={containerRef} className="w-full h-full bg-[#0A0A0A] rounded-2xl border border-[#222222] p-4 relative hover:border-sigma-teal-900 transition-colors duration-300">
+      <div ref={containerRef} className="w-full h-full bg-[#0A0A0A] rounded-2xl border border-[#222222] p-4 relative hover:border-sigma-teal/30 transition-colors duration-300">
         <div className="absolute top-4 left-4 z-10">
           <div className="text-sigma-teal font-mono text-xs tracking-wider uppercase">CONSTELLATION</div>
         </div>
@@ -368,4 +348,6 @@ export default function ConstellationViewer({ data }: ConstellationViewerProps) 
       </FocusMode>
     </>
   );
-}
+});
+
+export default ConstellationViewer;

@@ -49,6 +49,23 @@ export default function Workstation() {
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+
+  const sectionRefs = {
+    upload: useRef<HTMLDivElement>(null),
+    recent: useRef<HTMLDivElement>(null),
+    spectrum: useRef<HTMLDivElement>(null),
+    waterfall: useRef<HTMLDivElement>(null),
+    constellation: useRef<HTMLDivElement>(null),
+    waveform: useRef<HTMLDivElement>(null),
+    parameters: useRef<HTMLDivElement>(null),
+    processing: useRef<HTMLDivElement>(null),
+    diagnostics: useRef<HTMLDivElement>(null),
+    hypothesis: useRef<HTMLDivElement>(null),
+    signalExplorer: useRef<HTMLDivElement>(null),
+    decoderLab: useRef<HTMLDivElement>(null),
+    bitstream: useRef<HTMLDivElement>(null)
+  };
 
   const [spectrumData, setSpectrumData] = useState<SpectrumPoint[]>([]);
   const [waterfallData, setWaterfallData] = useState<number[][]>([]);
@@ -440,43 +457,59 @@ export default function Workstation() {
       {/* Main Content */}
       <div className="relative z-10">
         {/* Header */}
-        <motion.header
-          initial={{ y: -20, opacity: 0 }}
+        <motion.nav
+          initial={{ y: -100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6 }}
-          className="border-b border-[#222222] bg-[#0A0A0A]/80 backdrop-blur-sm"
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+          className="fixed top-6 left-0 right-0 z-50 px-6"
         >
-          <div className="max-w-[1800px] mx-auto px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
-                SIGMA
+          <motion.div 
+            className="bg-[#0A0A0A] border border-[#222222] rounded-full px-8 py-4 shadow-2xl shadow-purple-900/20 max-w-[1600px] mx-auto"
+            style={{
+              boxShadow: '0 0 40px rgba(109, 40, 217, 0.15), 0 20px 40px rgba(0,0,0,0.5)'
+            }}
+          >
+            <div className="flex items-center justify-between gap-8">
+              <div className="flex items-center gap-8">
+                <motion.div 
+                  className="text-xl font-bold tracking-tighter bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  SIGMA
+                </motion.div>
+                
+                <div className="h-6 w-[1px] bg-[#222222]" />
+                
+                <div className="text-sm text-gray-400 font-mono">WORKSTATION</div>
               </div>
-              <div className="h-6 w-[1px] bg-[#222222]" />
-              <div className="text-sm text-gray-400 font-mono">WORKSTATION</div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {uploadedFile && (
-                <div className="flex items-center gap-2 bg-[#111111] border border-[#222222] rounded-lg px-4 py-2">
-                  <div className="w-2 h-2 bg-sigma-teal rounded-full animate-pulse" />
-                  <span className="text-xs font-mono text-gray-400">{uploadedFile.name}</span>
-                </div>
-              )}
               
-              <motion.button
-                onClick={() => navigate('/')}
-                className="px-4 py-2 bg-[#111111] border border-[#222222] hover:border-sigma-purple text-sm font-semibold rounded-lg transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Back to Home
-              </motion.button>
+              <div className="flex items-center gap-6">
+                {uploadedFile && (
+                  <>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-[#111111] border border-[#222222] rounded-full">
+                      <div className="w-2 h-2 bg-sigma-teal rounded-full animate-pulse" />
+                      <span className="text-xs font-mono text-gray-400">{uploadedFile.name}</span>
+                    </div>
+                    <div className="h-6 w-[1px] bg-[#222222]" />
+                  </>
+                )}
+                
+                <motion.button
+                  onClick={() => navigate('/')}
+                  className="px-6 py-2 bg-[#111111] border border-[#222222] hover:border-sigma-purple text-sm font-semibold rounded-full transition-colors text-white"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Back to Home
+                </motion.button>
+              </div>
             </div>
-          </div>
-        </motion.header>
+          </motion.div>
+        </motion.nav>
 
         {/* Main Workspace */}
-        <div className="max-w-[1800px] mx-auto p-6 space-y-6">
+        <div className="max-w-[1800px] mx-auto p-6 space-y-6 pt-28">
           {/* File Upload Zone */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}

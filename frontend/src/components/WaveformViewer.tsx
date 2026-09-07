@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import FocusMode from './FocusMode';
 
 interface WaveformViewerProps {
@@ -8,8 +8,9 @@ interface WaveformViewerProps {
   sampleRate: number;
 }
 
-export default function WaveformViewer({ iData, qData, timeData, sampleRate }: WaveformViewerProps) {
+const WaveformViewer = memo(function WaveformViewer({ iData, qData, timeData, sampleRate }: WaveformViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animFrameRef = useRef<number | null>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState(0);
@@ -19,8 +20,16 @@ export default function WaveformViewer({ iData, qData, timeData, sampleRate }: W
   const [selectedRange, setSelectedRange] = useState<{ start: number; end: number } | null>(null);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
 
+  useEffect(() => {
+    if (!isFocused) {
+      setZoomLevel(1);
+      setPanOffset(0);
+      setSelectedRange(null);
+    }
+  }, [iData.length, isFocused]);
+
   const drawWaveform = (canvas: HTMLCanvasElement, focused: boolean) => {
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -56,19 +65,16 @@ export default function WaveformViewer({ iData, qData, timeData, sampleRate }: W
       const gridLines = 10;
       ctx.strokeStyle = '#1a1a1a';
       ctx.lineWidth = 0.5;
+      ctx.beginPath();
       for (let i = 0; i <= gridLines; i++) {
         const y = (i / gridLines) * height;
-        ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
-        ctx.stroke();
-
         const x = (i / gridLines) * width;
-        ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
-        ctx.stroke();
       }
+      ctx.stroke();
 
       ctx.fillStyle = '#666666';
       ctx.font = '10px monospace';
@@ -94,27 +100,82 @@ export default function WaveformViewer({ iData, qData, timeData, sampleRate }: W
       ctx.strokeRect(startX, 0, endX - startX, height);
     }
 
-    ctx.strokeStyle = '#06b6d4';
-    ctx.lineWidth = focused ? 2 : 1;
-    ctx.beginPath();
-    viewIData.forEach((val, idx) => {
-      const x = (idx / viewIData.length) * width;
-      const y = midY - val * scaleY;
-      if (idx === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
+    const pixelWidth = Math.floor(width);
+    const samplesPerPixel = viewIData.length / pixelWidth;
 
-    ctx.strokeStyle = '#a78bfa';
-    ctx.lineWidth = focused ? 2 : 1;
-    ctx.beginPath();
-    viewQData.forEach((val, idx) => {
-      const x = (idx / viewQData.length) * width;
-      const y = midY + val * scaleY;
-      if (idx === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
+    if (samplesPerPixel > 2) {
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = focused ? 2 : 1;
+      ctx.beginPath();
+      
+      for (let px = 0; px < pixelWidth; px++) {
+        const startIdx = Math.floor(px * samplesPerPixel);
+        const endIdx = Math.floor((px + 1) * samplesPerPixel);
+        
+        let minI = Infinity;
+        let maxI = -Infinity;
+        
+        for (let i = startIdx; i < endIdx && i < viewIData.length; i++) {
+          const val = viewIData[i];
+          if (val < minI) minI = val;
+          if (val > maxI) maxI = val;
+        }
+        
+        const yMin = midY - maxI * scaleY;
+        const yMax = midY - minI * scaleY;
+        
+        ctx.moveTo(px, yMin);
+        ctx.lineTo(px, yMax);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = '#a78bfa';
+      ctx.lineWidth = focused ? 2 : 1;
+      ctx.beginPath();
+      
+      for (let px = 0; px < pixelWidth; px++) {
+        const startIdx = Math.floor(px * samplesPerPixel);
+        const endIdx = Math.floor((px + 1) * samplesPerPixel);
+        
+        let minQ = Infinity;
+        let maxQ = -Infinity;
+        
+        for (let i = startIdx; i < endIdx && i < viewQData.length; i++) {
+          const val = viewQData[i];
+          if (val < minQ) minQ = val;
+          if (val > maxQ) maxQ = val;
+        }
+        
+        const yMin = midY + minQ * scaleY;
+        const yMax = midY + maxQ * scaleY;
+        
+        ctx.moveTo(px, yMin);
+        ctx.lineTo(px, yMax);
+      }
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = focused ? 2 : 1;
+      ctx.beginPath();
+      viewIData.forEach((val, idx) => {
+        const x = (idx / viewIData.length) * width;
+        const y = midY - val * scaleY;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      ctx.strokeStyle = '#a78bfa';
+      ctx.lineWidth = focused ? 2 : 1;
+      ctx.beginPath();
+      viewQData.forEach((val, idx) => {
+        const x = (idx / viewQData.length) * width;
+        const y = midY + val * scaleY;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
 
     ctx.strokeStyle = '#222222';
     ctx.lineWidth = 1;
@@ -130,8 +191,6 @@ export default function WaveformViewer({ iData, qData, timeData, sampleRate }: W
       ctx.beginPath();
       ctx.moveTo(cursor.x, 0);
       ctx.lineTo(cursor.x, height);
-      ctx.stroke();
-      ctx.beginPath();
       ctx.moveTo(0, cursor.y);
       ctx.lineTo(width, cursor.y);
       ctx.stroke();
@@ -141,8 +200,39 @@ export default function WaveformViewer({ iData, qData, timeData, sampleRate }: W
 
   useEffect(() => {
     if (!iData.length || !qData.length || !canvasRef.current) return;
-    drawWaveform(canvasRef.current, isFocused);
+    
+    if (animFrameRef.current !== null) {
+      cancelAnimationFrame(animFrameRef.current);
+    }
+
+    animFrameRef.current = requestAnimationFrame(() => {
+      if (canvasRef.current) {
+        drawWaveform(canvasRef.current, isFocused);
+      }
+    });
+
+    return () => {
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
   }, [iData, qData, timeData, isFocused, zoomLevel, panOffset, cursor, selectedRange]);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (canvasRef.current) {
+        drawWaveform(canvasRef.current, isFocused);
+      }
+    });
+
+    resizeObserver.observe(canvasRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [iData, qData, isFocused, zoomLevel, panOffset]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (!isFocused) return;
@@ -212,7 +302,6 @@ export default function WaveformViewer({ iData, qData, timeData, sampleRate }: W
     if (!rect) return null;
 
     const relX = cursor.x / rect.width;
-    const relY = (rect.height / 2 - cursor.y) / (rect.height * 0.4);
 
     const samplesPerView = Math.floor(iData.length / zoomLevel);
     const centerSample = Math.floor(iData.length / 2 + panOffset * iData.length);
@@ -289,7 +378,7 @@ export default function WaveformViewer({ iData, qData, timeData, sampleRate }: W
 
   return (
     <>
-      <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex flex-col hover:border-cyan-900 transition-colors duration-300 relative">
+      <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex flex-col hover:border-cyan-900/30 transition-colors duration-300 relative">
         <div className="flex items-center justify-between mb-4">
           <div className="text-cyan-500 font-mono text-xs tracking-wider uppercase">TIME DOMAIN</div>
           <div className="text-xs text-gray-500 font-mono">
@@ -344,4 +433,6 @@ export default function WaveformViewer({ iData, qData, timeData, sampleRate }: W
       </FocusMode>
     </>
   );
-}
+});
+
+export default WaveformViewer;
