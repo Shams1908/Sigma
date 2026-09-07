@@ -1,49 +1,121 @@
+/* ── Google Fonts: Inter + JetBrains Mono ─────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Global styles */
+/* ── Global reset ──────────────────────────────────────────────────────── */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
+    'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #000000;
-  color: #ffffff;
+  background-color: #0A0E12;
+  color: #E6EDF3;
 }
 
 code {
-  font-family: 'Fira Code', 'Courier New', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
 }
 
-/* Custom scrollbar for dark theme */
+/* ── Custom scrollbar ──────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: #0A0E12;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #222222;
+  background: #1E262E;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #333333;
+  background: rgba(34, 211, 238, 0.27);
 }
 
-/* Ensure root fills viewport */
+/* ── Root ──────────────────────────────────────────────────────────────── */
 #root {
   min-height: 100vh;
   width: 100%;
+}
+
+/* ── Nav link: centre-outward underline ────────────────────────────────── */
+.nav-link {
+  position: relative;
+  font-size: 0.875rem;
+  color: #8A939D;
+  text-decoration: none;
+  transition: color 150ms ease;
+  padding-bottom: 2px;
+}
+.nav-link:hover {
+  color: #E6EDF3;
+}
+.nav-link-ul-left,
+.nav-link-ul-right {
+  position: absolute;
+  bottom: -2px;
+  height: 2px;
+  background: #8A939D;
+  width: 0;
+  transition: width 200ms ease;
+}
+.nav-link-ul-left  { right: 50%; }
+.nav-link-ul-right { left: 50%; }
+.nav-link:hover .nav-link-ul-left,
+.nav-link:hover .nav-link-ul-right { width: 50%; }
+.nav-link.active { color: #E6EDF3; }
+.nav-link.active .nav-link-ul-left,
+.nav-link.active .nav-link-ul-right { width: 50%; background: #22D3EE; }
+
+/* ── Scroll indicator pulse ────────────────────────────────────────────── */
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 1.0; }
+}
+.scroll-indicator {
+  animation: pulse-opacity 1.8s ease-in-out infinite;
+}
+
+/* ── Pipeline stage: running pulse ────────────────────────────────────── */
+@keyframes stage-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1.0; }
+}
+.stage-running {
+  animation: stage-pulse 1s ease-in-out infinite;
+}
+
+/* ── Clip-reveal: reduced-motion override ──────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-target {
+    transition: clip-path 200ms ease !important;
+  }
+  /* Sweep line suppressed — handled inline via isRevealed immediate set */
+}
+
+/* ── Web threads mobile fallback ───────────────────────────────────────── */
+.web-threads-fallback {
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    rgba(34, 211, 238, 0.07) 0%,
+    rgba(52, 211, 153, 0.04) 50%,
+    transparent 100%
+  );
 }

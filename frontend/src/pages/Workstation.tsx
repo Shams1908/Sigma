@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Topography from '../components/Topography';
 import SpectrumViewer from '../components/SpectrumViewer';
 import WaterfallViewer from '../components/WaterfallViewer';
@@ -117,6 +117,17 @@ export default function Workstation() {
     entropy: number;
     onesRatio: number;
   } | null>(null);
+
+  // ── Landing page file handoff ──────────────────────────────────────────
+  // When the user drops/selects a file on the landing page upload section,
+  // LandingView navigates here with { state: { file } }. Read it once on
+  // mount and kick off the upload so the dashboard pre-populates.
+  const location = useLocation();
+  useEffect(() => {
+    const preloadFile = (location.state as { file?: File } | null)?.file;
+    if (preloadFile) handleFileUpload(preloadFile);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentional empty deps — run once on mount only
 
   // File upload handlers
   const handleDragEnter = (e: React.DragEvent) => {

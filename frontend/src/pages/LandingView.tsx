@@ -1,635 +1,1397 @@
-import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView } from 'framer-motion';
-import { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Topography from '../components/Topography';
+// LandingView.tsx — full replacement per landing-page-redesign spec
+// Tasks T5 (shell), T6 (MagneticButton), T7 (ReticleCursor),
+//       T8 (Navbar), T9 (Hero), T10 (Features),
+//       T11a (Pipeline), T11b (Upload), T11c (Impact), T11d (Footer)
 
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  RefObject,
+} from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useScanReveal } from '../hooks/useScanReveal';
+import WebThreads from '../components/WebThreads/WebThreads';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Props
+// ─────────────────────────────────────────────────────────────────────────────
 interface LandingViewProps {
   onLaunch: () => void;
 }
 
-export default function LandingView({ onLaunch }: LandingViewProps) {
-  const navigate = useNavigate();
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  
-  const handleLaunch = () => {
-    navigate('/workstation');
-  };
-  const heroRef = useRef(null);
-  const problemRef = useRef(null);
-  const pipelineRef = useRef(null);
-  const impactRef = useRef(null);
+// ─────────────────────────────────────────────────────────────────────────────
+// T5 — Shared utilities
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const heroInView = useInView(heroRef, { once: true, amount: 0.3 });
-  const problemInView = useInView(problemRef, { once: true, amount: 0.2 });
-  const pipelineInView = useInView(pipelineRef, { once: true, amount: 0.1 });
-  const impactInView = useInView(impactRef, { once: true, amount: 0.1 });
+function smoothScrollTo(id: string) {
+  document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' });
+}
 
-  const { scrollYProgress } = useScroll();
-  const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
-
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches
+  );
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({
-        x: e.clientX,
-        y: e.clientY
-      });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+    const mq = window.matchMedia(query);
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [query]);
+  return matches;
+}
 
-  const magneticEffect = (ref: React.RefObject<HTMLElement>, strength = 20) => {
-    if (!ref.current) return { x: 0, y: 0 };
-    const rect = ref.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const distX = mousePosition.x - centerX;
-    const distY = mousePosition.y - centerY;
-    const distance = Math.sqrt(distX * distX + distY * distY);
-    if (distance < 150) {
-      const factor = (150 - distance) / 150;
-      return { x: distX * factor * (strength / 150), y: distY * factor * (strength / 150) };
-    }
-    return { x: 0, y: 0 };
-  };
+// ─────────────────────────────────────────────────────────────────────────────
+// T3 — ScanRevealBlock (defined here alongside its consumers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ScanRevealBlockProps {
+  children: React.ReactNode;
+  delay?: number;
+  duration?: number;
+  className?: string;
+}
+
+function ScanRevealBlock({ children, delay, duration = 800, className }: ScanRevealBlockProps) {
+  const { ref, isRevealed, style } = useScanReveal({ delay, duration });
+  const prefersReduced = useMediaQuery('(prefers-reduced-motion: reduce)');
 
   return (
-    <div className="relative min-h-screen bg-black text-white overflow-x-hidden antialiased">
-      {/* WebGL Topography Background */}
-      <div className="fixed inset-0 z-0">
-        <Topography
-          lowColor="#0a0014"
-          midColor="#6d28d9"
-          highColor="#d8b4fe"
-          speed={0.35}
-          bands={2.0}
-          thickness={0.012}
-          glow={0.8}
-          pixelSize={1.0}
-          mouseInteraction={true}
-          mouseRadius={0.3}
-          mouseStrength={0.4}
+    <div
+      ref={ref}
+      style={{ position: 'relative', overflow: 'hidden', ...style }}
+      className={className}
+    >
+      {children}
+      {/* Radar sweep line — only shown when not reduced-motion */}
+      {!prefersReduced && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            right: isRevealed ? '0%' : '100%',
+            width: '2px',
+            background: '#22D3EE',
+            boxShadow: isRevealed ? 'none' : '0 0 8px #22D3EE',
+            opacity: isRevealed ? 0 : 1,
+            transition: isRevealed
+              ? `right ${duration}ms cubic-bezier(0.16,1,0.3,1), opacity 50ms ease ${duration}ms`
+              : 'none',
+            pointerEvents: 'none',
+          }}
         />
-        {/* Removed radial vignette - full brightness topography across entire screen */}
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T6 — useMagneticHover hook
+// ─────────────────────────────────────────────────────────────────────────────
+
+function useMagneticHover(ref: RefObject<HTMLElement>) {
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const el = ref.current;
+    if (!el) return;
+
+    let rafId = 0;
+    let ox = 0, oy = 0;
+    let txOx = 0, txOy = 0;
+
+    const clamp = (v: number, lo: number, hi: number) =>
+      Math.max(lo, Math.min(hi, v));
+
+    const onMove = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      txOx = clamp((e.clientX - cx) * 0.15, -7, 7);
+      txOy = clamp((e.clientY - cy) * 0.15, -7, 7);
+    };
+    const onLeave = () => { txOx = 0; txOy = 0; };
+
+    const loop = () => {
+      ox += (txOx - ox) * 0.18;
+      oy += (txOy - oy) * 0.18;
+      el.style.transform = `translate(${ox.toFixed(2)}px, ${oy.toFixed(2)}px)`;
+      if (
+        Math.abs(ox) > 0.05 || Math.abs(oy) > 0.05 ||
+        Math.abs(txOx) > 0.05 || Math.abs(txOy) > 0.05
+      ) {
+        rafId = requestAnimationFrame(loop);
+      } else {
+        rafId = 0;
+        el.style.transform = 'translate(0px, 0px)';
+      }
+    };
+    const onEnter = () => {
+      if (rafId === 0) rafId = requestAnimationFrame(loop);
+    };
+
+    el.addEventListener('mousemove', onMove);
+    el.addEventListener('mouseenter', onEnter);
+    el.addEventListener('mouseleave', onLeave);
+    return () => {
+      cancelAnimationFrame(rafId);
+      el.removeEventListener('mousemove', onMove);
+      el.removeEventListener('mouseenter', onEnter);
+      el.removeEventListener('mouseleave', onLeave);
+    };
+  }, [ref]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T6 — MagneticButton
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface MagneticButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary';
+  children: React.ReactNode;
+}
+
+function MagneticButton({ variant = 'secondary', children, style, ...props }: MagneticButtonProps) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useMagneticHover(ref as RefObject<HTMLElement>);
+
+  const base: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontFamily: '"JetBrains Mono", monospace',
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.1em',
+    borderRadius: '2px',
+    padding: '10px 24px',
+    cursor: 'pointer',
+    transition: 'background-color 150ms ease, color 150ms ease, border-color 150ms ease',
+    border: 'none',
+    outline: 'none',
+  };
+
+  const variantStyle: React.CSSProperties =
+    variant === 'primary'
+      ? { backgroundColor: '#22D3EE', color: '#0A0E12', border: 'none' }
+      : {
+          backgroundColor: 'transparent',
+          border: '1px solid #1E262E',
+          color: '#8A939D',
+        };
+
+  return (
+    <button
+      ref={ref}
+      style={{ ...base, ...variantStyle, ...style }}
+      onMouseEnter={(e) => {
+        const btn = e.currentTarget;
+        if (variant === 'primary') {
+          btn.style.backgroundColor = '#34D399';
+        } else {
+          btn.style.borderColor = '#22D3EE';
+          btn.style.color = '#E6EDF3';
+        }
+      }}
+      onMouseLeave={(e) => {
+        const btn = e.currentTarget;
+        if (variant === 'primary') {
+          btn.style.backgroundColor = '#22D3EE';
+        } else {
+          btn.style.borderColor = '#1E262E';
+          btn.style.color = '#8A939D';
+        }
+      }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T7 — ReticleCursor
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ReticleCursor({ heroRef }: { heroRef: RefObject<HTMLElement> }) {
+  const isTouch = typeof window !== 'undefined' &&
+    (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window);
+  const prefersReduced = typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isInHero, setIsInHero] = useState(false);
+
+  useEffect(() => {
+    if (isTouch || prefersReduced) return;
+
+    let posX = 0, posY = 0;
+    let mouseX = 0, mouseY = 0;
+    let rafId = 0;
+
+    const loop = () => {
+      posX += (mouseX - posX) * 0.12;
+      posY += (mouseY - posY) * 0.12;
+      if (containerRef.current) {
+        containerRef.current.style.transform =
+          `translate(${(posX - 16).toFixed(1)}px, ${(posY - 16).toFixed(1)}px)`;
+      }
+      rafId = requestAnimationFrame(loop);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    rafId = requestAnimationFrame(loop);
+
+    const hero = heroRef.current;
+    const onEnter = () => setIsInHero(true);
+    const onLeave = () => setIsInHero(false);
+    hero?.addEventListener('mouseenter', onEnter);
+    hero?.addEventListener('mouseleave', onLeave);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('mousemove', onMouseMove);
+      hero?.removeEventListener('mouseenter', onEnter);
+      hero?.removeEventListener('mouseleave', onLeave);
+    };
+  }, [heroRef, isTouch, prefersReduced]);
+
+  // Apply cursor: none to hero when reticle is active
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero || isTouch || prefersReduced) return;
+    hero.style.cursor = isInHero ? 'none' : 'auto';
+    return () => { hero.style.cursor = 'auto'; };
+  }, [isInHero, heroRef, isTouch, prefersReduced]);
+
+  if (isTouch || prefersReduced) return null;
+
+  return (
+    <div
+      ref={containerRef}
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '32px',
+        height: '32px',
+        pointerEvents: 'none',
+        zIndex: 9999,
+        opacity: isInHero ? 1 : 0,
+        transition: 'opacity 100ms ease',
+      }}
+    >
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        {/* Four tick marks with 4px centre void */}
+        <line x1="16" y1="4"  x2="16" y2="12" stroke="#22D3EE" strokeWidth="1"/>
+        <line x1="16" y1="20" x2="16" y2="28" stroke="#22D3EE" strokeWidth="1"/>
+        <line x1="4"  y1="16" x2="12" y2="16" stroke="#22D3EE" strokeWidth="1"/>
+        <line x1="20" y1="16" x2="28" y2="16" stroke="#22D3EE" strokeWidth="1"/>
+        {/* Outer ring */}
+        <circle cx="16" cy="16" r="8" stroke="#22D3EE" strokeWidth="1" opacity="0.4"/>
+      </svg>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T8 — Navbar
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Navbar() {
+  const [activeSection, setActiveSection] = useState('');
+
+  useEffect(() => {
+    const sections = ['features', 'pipeline', 'upload', 'impact'];
+    const observers: IntersectionObserver[] = [];
+
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveSection(id); },
+        { threshold: 0.4 }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+
+    return () => observers.forEach((o) => o.disconnect());
+  }, []);
+
+  const navLinks = [
+    { id: 'features', label: 'Features' },
+    { id: 'pipeline', label: 'Pipeline' },
+    { id: 'impact',   label: 'Impact' },
+  ];
+
+  return (
+    <motion.nav
+      aria-label="Main navigation"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
+        height: '64px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 2rem',
+        backgroundColor: 'rgba(17, 23, 29, 0.85)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        borderBottom: '1px solid #1E262E',
+      }}
+    >
+      {/* Wordmark */}
+      <span
+        style={{
+          fontFamily: '"JetBrains Mono", monospace',
+          fontWeight: 700,
+          letterSpacing: '0.2em',
+          color: '#E6EDF3',
+          fontSize: '0.875rem',
+        }}
+      >
+        SIGMA
+      </span>
+
+      {/* Nav links — hidden below 768px */}
+      <div
+        className="hidden md:flex"
+        style={{ gap: '2rem', alignItems: 'center' }}
+      >
+        {navLinks.map(({ id, label }) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            onClick={(e) => { e.preventDefault(); smoothScrollTo(`#${id}`); }}
+            className={`nav-link${activeSection === id ? ' active' : ''}`}
+          >
+            <span className="nav-link-ul-left" />
+            {label}
+            <span className="nav-link-ul-right" />
+          </a>
+        ))}
       </div>
 
-      {/* Floating Solid Navbar */}
-      <motion.nav
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-        className="fixed top-6 left-0 right-0 z-50 flex justify-center px-6"
+      {/* Launch Workstation button */}
+      <button
+        onClick={() => smoothScrollTo('#upload')}
+        style={{
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: '0.75rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+          padding: '6px 16px',
+          borderRadius: '2px',
+          border: '1px solid #22D3EE',
+          color: '#22D3EE',
+          backgroundColor: 'transparent',
+          cursor: 'pointer',
+          transition: 'background-color 150ms ease, color 150ms ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#22D3EE';
+          e.currentTarget.style.color = '#0A0E12';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = '#22D3EE';
+        }}
       >
-        <motion.div 
-          className="bg-[#0A0A0A] border border-[#222222] rounded-full px-8 py-4 shadow-2xl shadow-purple-900/20 max-w-fit"
+        Launch Workstation
+      </button>
+    </motion.nav>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T10 — Feature mini-visuals (static inline SVGs / canvas)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Spectrum Analysis — polyline with Gaussian peak
+function SpectrumMini() {
+  // y = 65 - 50 * exp(-((x-60)^2) / 200) sampled at x=5,10,...,120
+  const pts: string[] = [];
+  for (let x = 5; x <= 120; x += 5) {
+    const y = 65 - 50 * Math.exp(-Math.pow(x - 60, 2) / 200);
+    pts.push(`${x},${y.toFixed(1)}`);
+  }
+  return (
+    <svg width="120" height="80" viewBox="0 0 120 80" aria-hidden="true"
+         style={{ flexShrink: 0 }}>
+      <rect width="120" height="80" rx="2" fill="#0A0E12"/>
+      <line x1="0" y1="20" x2="120" y2="20" stroke="#1E262E" strokeWidth="0.5" strokeDasharray="3,3"/>
+      <line x1="0" y1="60" x2="120" y2="60" stroke="#1E262E" strokeWidth="0.5" strokeDasharray="3,3"/>
+      <polyline points={pts.join(' ')} fill="none" stroke="#22D3EE" strokeWidth="1.5"/>
+    </svg>
+  );
+}
+
+// Waterfall View — canvas drawn once
+function WaterfallMini() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const W = 120, H = 80;
+    const img = ctx.createImageData(W, H);
+    for (let row = 0; row < H; row++) {
+      for (let col = 0; col < W; col++) {
+        const t = (Math.sin(col / 8) * 0.5 + 0.5) * (1 - Math.abs(row / 40 - 1));
+        let r, g, b;
+        if (t < 0.2) {
+          const l = t / 0.2;
+          r = Math.round(15 + l * 5);
+          g = Math.round(23 + l * 161);
+          b = Math.round(42 + l * 124);
+        } else if (t < 0.5) {
+          const l = (t - 0.2) / 0.3;
+          r = Math.round(20 + l * 235);
+          g = Math.round(184 + l * 71);
+          b = Math.round(166 + l * 89);
+        } else {
+          const l = (t - 0.5) / 0.5;
+          r = Math.round(255);
+          g = Math.round(255 - l * 89);
+          b = Math.round(255 - l * 89);
+        }
+        const i = (row * W + col) * 4;
+        img.data[i] = r; img.data[i+1] = g; img.data[i+2] = b; img.data[i+3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }, []);
+  return (
+    <canvas
+      ref={canvasRef}
+      width={120}
+      height={80}
+      aria-hidden="true"
+      style={{ flexShrink: 0, imageRendering: 'pixelated' }}
+    />
+  );
+}
+
+// Modulation Classification — confidence bars
+function ClassificationMini() {
+  const bars = [
+    { width: 104, opacity: 0.9 },  // QPSK 87%
+    { width: 13,  opacity: 0.5 },  // BPSK 11%
+    { width: 2,   opacity: 0.25 }, // 8PSK 2%
+    { width: 1,   opacity: 0.1 },  // QAM16 1%
+  ];
+  return (
+    <svg width="120" height="80" viewBox="0 0 120 80" aria-hidden="true"
+         style={{ flexShrink: 0 }}>
+      <rect width="120" height="80" rx="2" fill="#0A0E12"/>
+      {bars.map((b, i) => (
+        <g key={i} transform={`translate(0, ${8 + i * 18})`}>
+          <rect x="0" y="0" width="120" height="12" fill="#1E262E" rx="1"/>
+          <rect x="0" y="0" width={b.width} height="12" fill="#FBBF24"
+                fillOpacity={b.opacity} rx="1"/>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// Constellation Mapping — QPSK dot clusters
+function ConstellationMini() {
+  // Four clusters at (18,22), (102,22), (18,58), (102,58)
+  // Each cluster: 8 dots with hardcoded offsets
+  const offsets = [
+    [-3,-2], [2,-3], [-1,3], [3,2], [0,-4], [4,0], [-2,4], [1,1],
+  ];
+  const centres = [[18,22],[102,22],[18,58],[102,58]] as [number,number][];
+  return (
+    <svg width="120" height="80" viewBox="0 0 120 80" aria-hidden="true"
+         style={{ flexShrink: 0 }}>
+      <rect width="120" height="80" rx="2" fill="#0A0E12"/>
+      {/* Crosshair axes */}
+      <line x1="0" y1="40" x2="120" y2="40" stroke="#1E262E" strokeWidth="0.5"/>
+      <line x1="60" y1="0" x2="60"  y2="80" stroke="#1E262E" strokeWidth="0.5"/>
+      {centres.map(([cx, cy], ci) =>
+        offsets.map(([dx, dy], di) => (
+          <circle key={`${ci}-${di}`}
+            cx={cx + dx} cy={cy + dy} r="2"
+            fill="#22D3EE" fillOpacity="0.6"/>
+        ))
+      )}
+    </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T10 — Features section
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface FeatureCardProps {
+  accent: string;
+  label: string;
+  name: string;
+  body: string;
+  mini: React.ReactNode;
+  delay: number;
+  wide?: boolean;
+}
+
+function FeatureCard({ accent, label, name, body, mini, delay, wide }: FeatureCardProps) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <ScanRevealBlock delay={delay} duration={700}>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          backgroundColor: '#11171D',
+          border: `1px solid ${hovered ? accent : '#1E262E'}`,
+          borderTop: `2px solid ${accent}`,
+          borderRadius: '4px',
+          padding: '1.5rem',
+          display: 'flex',
+          flexDirection: wide ? 'row' : 'column',
+          gap: '1.5rem',
+          alignItems: wide ? 'center' : 'flex-start',
+          transition: 'border-color 150ms ease',
+          height: '100%',
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.65rem',
+                      color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+            {label}
+          </p>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                      color: '#E6EDF3', fontSize: '1rem', marginTop: '4px' }}>
+            {name}
+          </p>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
+                      color: '#8A939D', lineHeight: 1.6, marginTop: '8px' }}>
+            {body}
+          </p>
+        </div>
+        <div style={{ flexShrink: 0 }}>{mini}</div>
+      </div>
+    </ScanRevealBlock>
+  );
+}
+
+function FeaturesSection() {
+  return (
+    <section
+      id="features"
+      style={{ padding: '6rem 1.5rem', maxWidth: '80rem', margin: '0 auto' }}
+    >
+      <ScanRevealBlock>
+        <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
+                    color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+          // FEATURES
+        </p>
+        <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
+                     fontSize: '2rem', color: '#E6EDF3', marginTop: '0.5rem',
+                     marginBottom: '3rem' }}>
+          From raw capture to validated signal
+        </h2>
+      </ScanRevealBlock>
+
+      {/* Row 1: wide (7fr) | narrow (5fr) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '7fr 5fr',
+                    gap: '1.5rem', marginBottom: '1.5rem' }}
+           className="max-md:!grid-cols-1">
+        <FeatureCard accent="#22D3EE" label="Spectrum Analysis"
+          name="Frequency-domain decomposition"
+          body="FFT-derived power spectral density with peak detection and bandwidth estimation across the full capture."
+          mini={<SpectrumMini />} delay={0} wide />
+        <FeatureCard accent="#34D399" label="Waterfall View"
+          name="Time-frequency intensity map"
+          body="Scrolling spectrogram rendered row-by-row, revealing signal persistence, drift, and spectral occupancy over time."
+          mini={<WaterfallMini />} delay={100} />
+      </div>
+
+      {/* Row 2: narrow (5fr) | wide (7fr) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '5fr 7fr', gap: '1.5rem' }}
+           className="max-md:!grid-cols-1">
+        <FeatureCard accent="#FBBF24" label="Modulation Classification"
+          name="ML-ranked hypothesis candidates"
+          body="Convolutional classifier ranks modulation schemes by confidence. Each candidate undergoes physical demodulation and FEC verification before acceptance."
+          mini={<ClassificationMini />} delay={200} />
+        <FeatureCard accent="#22D3EE" label="Constellation Mapping"
+          name="IQ scatter diagram"
+          body="Phase-space plot of demodulated symbols. Tight clusters indicate successful synchronization and low EVM; scatter indicates sync failure."
+          mini={<ConstellationMini />} delay={300} wide />
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T11a — Pipeline section
+// ─────────────────────────────────────────────────────────────────────────────
+
+type StageStatus = 'pending' | 'running' | 'completed';
+
+const PIPELINE_STAGES = [
+  { key: 'INGESTION',    label: 'STAGE 01' },
+  { key: 'DSP ANALYSIS', label: 'STAGE 02' },
+  { key: 'MODULATION',   label: 'STAGE 03' },
+  { key: 'DEMODULATION', label: 'STAGE 04' },
+  { key: 'FEC',          label: 'STAGE 05' },
+  { key: 'VALIDATION',   label: 'STAGE 06' },
+];
+
+function stageCircleColor(status: StageStatus): string {
+  if (status === 'completed') return '#34D399';
+  if (status === 'running')   return '#22D3EE';
+  return '#1E262E';
+}
+
+function PipelineSection() {
+  const [statuses, setStatuses] = useState<StageStatus[]>(
+    Array(6).fill('pending') as StageStatus[]
+  );
+  const [hasPlayed, setHasPlayed] = useState(false);
+  const { ref: sectionRef, isRevealed } = useScanReveal({ threshold: 0.2 });
+  const prefersReduced = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const isMobile = useMediaQuery('(max-width: 767px)');
+
+  useEffect(() => {
+    if (!isRevealed || hasPlayed) return;
+    setHasPlayed(true);
+    if (prefersReduced) {
+      setStatuses(Array(6).fill('completed') as StageStatus[]);
+      return;
+    }
+    let i = 0;
+    const id = setInterval(() => {
+      setStatuses((prev) => {
+        const next = [...prev] as StageStatus[];
+        if (i > 0) next[i - 1] = 'completed';
+        if (i < 6) next[i] = 'running';
+        return next;
+      });
+      i++;
+      if (i > 6) {
+        clearInterval(id);
+        setStatuses(Array(6).fill('completed') as StageStatus[]);
+      }
+    }, 600);
+    return () => clearInterval(id);
+  }, [isRevealed, hasPlayed, prefersReduced]);
+
+  const CHIP_PARAMS = ['fs', 'fc', 'modulation', 'symbol_rate', 'fec_scheme', 'bandwidth'];
+
+  return (
+    <section id="pipeline"
+      style={{ padding: '6rem 1.5rem', maxWidth: '80rem', margin: '0 auto' }}>
+
+      {/* Section header */}
+      <ScanRevealBlock>
+        <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
+                    color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+          // PIPELINE
+        </p>
+        <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
+                     fontSize: '2rem', color: '#E6EDF3', marginTop: '0.5rem',
+                     marginBottom: '3rem' }}>
+          Six stages, fully traced
+        </h2>
+      </ScanRevealBlock>
+
+      {/* Stage timeline */}
+      <div ref={sectionRef as React.RefObject<HTMLDivElement>}
+        style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'flex-start',
+          gap: isMobile ? '0' : '0',
+          marginBottom: '3rem',
+          overflowX: 'auto',
+        }}>
+        {PIPELINE_STAGES.map((stage, i) => (
+          <ScanRevealBlock key={stage.key} delay={i * 150} duration={600}
+            style={{ display: 'flex', flex: isMobile ? undefined : 1,
+                     flexDirection: isMobile ? 'row' : 'column',
+                     alignItems: 'center' } as React.CSSProperties}>
+            <div style={{ display: 'flex',
+                          flexDirection: isMobile ? 'column' : 'column',
+                          alignItems: 'center', flex: 'none' }}>
+              {/* Circle */}
+              <div
+                className={statuses[i] === 'running' ? 'stage-running' : ''}
+                style={{
+                  width: '40px', height: '40px', borderRadius: '50%',
+                  backgroundColor: stageCircleColor(statuses[i]),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1rem', color: '#0A0E12', fontWeight: 700,
+                  border: statuses[i] === 'pending' ? '1px solid #1E262E' : 'none',
+                  transition: 'background-color 300ms ease',
+                }}
+              >
+                {statuses[i] === 'completed' ? '✓' :
+                 statuses[i] === 'running'   ? '⟳' : '○'}
+              </div>
+              {/* Labels */}
+              <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.6rem',
+                          color: '#8A939D', textTransform: 'uppercase',
+                          letterSpacing: '0.1em', marginTop: '6px', textAlign: 'center' }}>
+                {stage.label}
+              </p>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.7rem',
+                          color: '#E6EDF3', textAlign: 'center', marginTop: '2px',
+                          whiteSpace: 'nowrap' }}>
+                {stage.key}
+              </p>
+            </div>
+            {/* Connector */}
+            {i < PIPELINE_STAGES.length - 1 && (
+              <div style={
+                isMobile
+                  ? { width: '2px', height: '32px', marginLeft: '19px',
+                      backgroundColor: statuses[i] === 'completed' ? '#34D399' : '#1E262E',
+                      transition: 'background-color 300ms ease' }
+                  : { flex: 1, height: '2px', marginTop: '-28px',
+                      backgroundColor: statuses[i] === 'completed' ? '#34D399' : '#1E262E',
+                      transition: 'background-color 300ms ease', minWidth: '16px' }
+              }/>
+            )}
+          </ScanRevealBlock>
+        ))}
+      </div>
+
+      {/* Parameter chips */}
+      <ScanRevealBlock>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
+          {CHIP_PARAMS.map((p) => (
+            <span key={p} style={{
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              padding: '4px 12px', backgroundColor: '#151C22',
+              border: '1px solid #1E262E', borderRadius: '2px',
+              fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem', color: '#8A939D',
+            }}>
+              <span style={{ color: '#22D3EE' }}>·</span>{p}
+            </span>
+          ))}
+        </div>
+      </ScanRevealBlock>
+
+      {/* MVP scope note */}
+      <ScanRevealBlock>
+        <div style={{
+          backgroundColor: '#151C22', border: '1px solid #1E262E',
+          borderLeft: '4px solid #FBBF24', borderRadius: '4px', padding: '1rem 1.25rem',
+        }}>
+          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.65rem',
+                      color: '#FBBF24', textTransform: 'uppercase', letterSpacing: '0.15em',
+                      marginBottom: '6px' }}>
+            MVP SCOPE
+          </p>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: '#E6EDF3', lineHeight: 1.6 }}>
+            Initial validation targets BPSK and QPSK modulation with convolutional FEC codes.
+            Each hypothesis undergoes real Viterbi decoding with syndrome checking before acceptance.
+          </p>
+        </div>
+      </ScanRevealBlock>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T11b — Upload / Get Started section
+// ─────────────────────────────────────────────────────────────────────────────
+
+function UploadSection() {
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleFiles = useCallback((files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (['iq', 'wav', 'raw'].includes(ext)) {
+      navigate('/workstation', { state: { file } });
+    }
+  }, [navigate]);
+
+  return (
+    <section id="upload"
+      style={{ padding: '6rem 1.5rem', maxWidth: '48rem', margin: '0 auto' }}>
+
+      {/* Section header */}
+      <ScanRevealBlock>
+        <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
+                    color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+          // GET STARTED
+        </p>
+        <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
+                     fontSize: '2rem', color: '#E6EDF3', marginTop: '0.5rem',
+                     marginBottom: '2rem' }}>
+          Load a signal, start analysing
+        </h2>
+      </ScanRevealBlock>
+
+      {/* Drop-zone + divider + demo link */}
+      <ScanRevealBlock duration={900}>
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".iq,.wav,.raw"
+          style={{ display: 'none' }}
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+
+        {/* Drop-zone */}
+        <div
+          role="button"
+          aria-label="Drop signal file or click to browse"
+          tabIndex={0}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+          onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            handleFiles(e.dataTransfer.files);
+          }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
           style={{
-            boxShadow: '0 0 40px rgba(109, 40, 217, 0.15), 0 20px 40px rgba(0,0,0,0.5)'
+            border: `1px dashed ${isDragOver ? '#22D3EE' : '#1E262E'}`,
+            borderRadius: '4px',
+            padding: '4rem 2rem',
+            textAlign: 'center',
+            backgroundColor: isDragOver ? 'rgba(34,211,238,0.04)' : '#11171D',
+            transition: 'border-color 100ms ease, background-color 100ms ease',
+            cursor: 'default',
           }}
         >
-          <div className="flex items-center gap-8">
-            {/* Logo */}
-            <motion.div 
-              className="text-xl font-bold tracking-tighter bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent"
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.2 }}
-            >
-              SIGMA
-            </motion.div>
-            
-            {/* Nav Links */}
-            <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-400">
-              {['Features', 'Pipeline', 'Impact'].map((item, i) => (
-                <motion.a 
-                  key={item}
-                  href={`#${item.toLowerCase()}`} 
-                  className="hover:text-white transition-colors duration-300 relative group whitespace-nowrap"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 + i * 0.1 }}
-                  whileHover={{ y: -2 }}
-                >
-                  {item}
-                  <motion.div 
-                    className="absolute -bottom-1 left-0 w-0 h-[2px] bg-purple-500 group-hover:w-full transition-all duration-300"
-                  />
-                </motion.a>
-              ))}
-            </div>
-            
-            {/* Launch Button */}
-            <motion.button
-              onClick={handleLaunch}
-              className="bg-white text-black px-6 py-2 rounded-full font-semibold text-sm transition-all duration-300 relative overflow-hidden"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-            >
-              <span className="relative z-10">Launch</span>
-              <motion.div 
-                className="absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-600"
-                initial={{ x: '100%' }}
-                whileHover={{ x: 0 }}
-                transition={{ duration: 0.3 }}
-              />
-            </motion.button>
-          </div>
-        </motion.div>
-      </motion.nav>
+          {/* Upload icon */}
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none"
+               aria-hidden="true" style={{ margin: '0 auto 1rem' }}>
+            <circle cx="20" cy="20" r="18" stroke="#22D3EE" strokeWidth="1.5"/>
+            <line x1="20" y1="28" x2="20" y2="12" stroke="#22D3EE" strokeWidth="1.5"/>
+            <polyline points="14,18 20,12 26,18" fill="none" stroke="#22D3EE" strokeWidth="1.5"/>
+          </svg>
 
-      <div className="relative z-10">
-        {/* HERO SECTION */}
-        <section 
-          ref={heroRef}
-          className="min-h-screen flex flex-col items-center justify-center px-6 relative"
-        >
-          <motion.div 
-            className="max-w-6xl w-full space-y-12"
-            initial={{ opacity: 0 }}
-            animate={heroInView ? { opacity: 1 } : { opacity: 0 }}
-            transition={{ duration: 1 }}
+          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.875rem',
+                      color: '#E6EDF3', textTransform: 'uppercase', letterSpacing: '0.1em',
+                      marginBottom: '0.5rem' }}>
+            DROP SIGNAL FILE
+          </p>
+          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
+                      color: '#8A939D', marginBottom: '1.5rem' }}>
+            Accepts .IQ · .WAV · .RAW
+          </p>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
+              textTransform: 'uppercase', letterSpacing: '0.1em',
+              padding: '8px 20px', borderRadius: '2px',
+              border: '1px solid #1E262E', color: '#8A939D',
+              backgroundColor: 'transparent', cursor: 'pointer',
+              transition: 'border-color 150ms ease, color 150ms ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#22D3EE';
+              e.currentTarget.style.color = '#E6EDF3';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#1E262E';
+              e.currentTarget.style.color = '#8A939D';
+            }}
           >
-            {/* Top Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex justify-center"
-            >
-              <div className="bg-[#0A0A0A] border border-purple-800/50 rounded-full px-6 py-2 inline-flex items-center gap-2">
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                <span className="text-purple-400 font-mono text-sm tracking-wider">SIGMA</span>
-              </div>
-            </motion.div>
+            Browse Files
+          </button>
+        </div>
 
-            {/* Massive Headline with Gradient Clip */}
-            <div className="text-center">
-              <motion.h1
-                className="text-[5rem] md:text-[8rem] lg:text-[10rem] font-black leading-[0.85] tracking-tighter"
-                initial={{ opacity: 0, y: 40 }}
-                animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-                transition={{ duration: 0.8, delay: 0.5 }}
-              >
-                {['Automated', 'signal', 'intelligence', '& analysis'].map((word, i) => (
-                  <motion.span
-                    key={word}
-                    className="block bg-gradient-to-br from-white via-purple-200 to-purple-500 bg-clip-text text-transparent"
-                    initial={{ opacity: 0, x: i % 2 === 0 ? -50 : 50 }}
-                    animate={heroInView ? { opacity: 1, x: 0 } : { opacity: 0, x: i % 2 === 0 ? -50 : 50 }}
-                    transition={{ duration: 0.8, delay: 0.7 + i * 0.1 }}
-                    style={{
-                      textShadow: '0 0 80px rgba(168, 85, 247, 0.4)'
-                    }}
-                  >
-                    {word}
-                  </motion.span>
-                ))}
-              </motion.h1>
-            </div>
+        {/* OR divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1.5rem 0' }}>
+          <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #1E262E' }}/>
+          <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
+                         color: '#8A939D' }}>OR</span>
+          <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #1E262E' }}/>
+        </div>
 
-            {/* Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-              transition={{ duration: 0.6, delay: 1.2 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            >
-              {/* Primary Button */}
-              <motion.button
-                onClick={handleLaunch}
-                className="group relative px-10 py-4 bg-white text-black font-bold text-lg rounded-lg overflow-hidden"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  boxShadow: '0 0 40px rgba(255,255,255,0.3), 0 20px 40px rgba(0,0,0,0.5)'
-                }}
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  Launch Workstation
-                  <motion.svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    initial={{ x: 0 }}
-                    whileHover={{ x: 5 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </motion.svg>
-                </span>
-              </motion.button>
+        {/* Demo signal — no mock data, navigates to Workstation directly */}
+        <div style={{ textAlign: 'center' }}>
+          <button
+            onClick={() => navigate('/workstation')}
+            style={{
+              fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
+              textTransform: 'uppercase', letterSpacing: '0.1em',
+              color: '#8A939D', background: 'transparent',
+              border: 'none', cursor: 'pointer',
+              transition: 'color 150ms ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#E6EDF3'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#8A939D'; }}
+          >
+            Load demonstration signal
+          </button>
+        </div>
+      </ScanRevealBlock>
+    </section>
+  );
+}
 
-              {/* Secondary Button */}
-              <motion.button
-                className="px-10 py-4 bg-[#111111] text-white font-bold text-lg rounded-lg border border-[#333333] hover:border-purple-500 transition-all duration-300"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
-                }}
-              >
-                View Documentation
-              </motion.button>
-            </motion.div>
+// ─────────────────────────────────────────────────────────────────────────────
+// T11c — Impact section: useCountUp hook + stat cards + USP + benefits
+// ─────────────────────────────────────────────────────────────────────────────
 
-            {/* Scroll Indicator */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={heroInView ? { opacity: 1 } : { opacity: 0 }}
-              transition={{ duration: 0.6, delay: 1.5 }}
-              className="absolute bottom-10 left-1/2 -translate-x-1/2"
-            >
-              <motion.div
-                animate={{ y: [0, 10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="flex flex-col items-center gap-2 text-gray-500"
-              >
-                <span className="text-xs font-mono tracking-wider">SCROLL</span>
-                <div className="w-[2px] h-12 bg-gradient-to-b from-purple-500 to-transparent" />
-              </motion.div>
-            </motion.div>
-          </motion.div>
-        </section>
+function useCountUp(target: number, isActive: boolean, duration = 1200): number {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!isActive) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setValue(target);
+      return;
+    }
+    const start = performance.now();
+    let rafId: number;
+    const raf = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(Math.round(eased * target));
+      if (p < 1) rafId = requestAnimationFrame(raf);
+    };
+    rafId = requestAnimationFrame(raf);
+    return () => cancelAnimationFrame(rafId);
+  }, [isActive, target, duration]);
+  return value;
+}
 
-        {/* PROBLEM & SOLUTION SECTION */}
-        <section 
-          id="features"
-          ref={problemRef}
-          className="min-h-screen flex items-center justify-center px-6 py-20 relative"
-        >
-          <div className="max-w-7xl w-full">
-            {/* Section Title */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={problemInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-              transition={{ duration: 0.8 }}
-              className="mb-20"
-            >
-              <h2 className="text-6xl md:text-7xl font-black text-center mb-4 bg-gradient-to-br from-white to-gray-500 bg-clip-text text-transparent">
-                The Problem &<br />Solution
-              </h2>
-              <p className="text-center text-gray-400 text-lg max-w-2xl mx-auto">
-                Traditional RF analysis is broken. SIGMA fixes it.
-              </p>
-            </motion.div>
+interface StatCardProps {
+  target: number;
+  label: string;
+  delay: number;
+}
 
-            {/* Comparison Cards */}
-            <div className="grid lg:grid-cols-2 gap-8">
-              {/* Traditional Analysis Card */}
-              <motion.div
-                initial={{ opacity: 0, x: -50 }}
-                animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -50 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="bg-[#0A0A0A] border border-[#222222] rounded-3xl p-10 relative overflow-hidden"
-                style={{
-                  boxShadow: '0 0 60px rgba(239, 68, 68, 0.1)'
-                }}
-              >
-                {/* Red accent glow */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/10 rounded-full blur-[100px]" />
-                
-                <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-8">
-                    <motion.div 
-                      className="w-3 h-3 bg-red-500 rounded-full"
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                    <h3 className="text-3xl font-bold text-red-400">Traditional Analysis</h3>
-                  </div>
+function StatCard({ target, label, delay }: StatCardProps) {
+  const { ref, isRevealed } = useScanReveal({ delay, threshold: 0.3 });
+  const count = useCountUp(target, isRevealed);
+  const [hovered, setHovered] = useState(false);
 
-                  <ul className="space-y-5">
-                    {[
-                      'Trial-and-error manual parameter adjustment',
-                      'Uncertainty chain: one wrong guess breaks everything downstream',
-                      'AI confidence scores without physical validation',
-                      'Hours spent on false positives and dead ends'
-                    ].map((item, i) => (
-                      <motion.li
-                        key={i}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                        transition={{ duration: 0.4, delay: 0.4 + i * 0.1 }}
-                        className="flex items-start gap-4 text-gray-300"
-                      >
-                        <span className="text-red-400 text-xl mt-1 font-bold">×</span>
-                        <span className="leading-relaxed">{item}</span>
-                      </motion.li>
-                    ))}
-                  </ul>
-                </div>
-              </motion.div>
+  return (
+    <div ref={ref as React.RefObject<HTMLDivElement>}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        backgroundColor: '#11171D',
+        border: `1px solid ${hovered ? '#22D3EE' : '#1E262E'}`,
+        borderRadius: '4px',
+        padding: '2rem',
+        transition: 'border-color 150ms ease',
+      }}>
+      <span style={{
+        fontFamily: '"JetBrains Mono", monospace',
+        fontWeight: 700,
+        fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+        color: '#E6EDF3',
+        display: 'block',
+      }}>
+        {count.toLocaleString()}
+      </span>
+      <p style={{
+        fontFamily: '"JetBrains Mono", monospace',
+        fontSize: '0.65rem',
+        color: '#8A939D',
+        textTransform: 'uppercase',
+        letterSpacing: '0.15em',
+        marginTop: '4px',
+      }}>
+        {label}
+      </p>
+    </div>
+  );
+}
 
-              {/* SIGMA Approach Card */}
-              <motion.div
-                initial={{ opacity: 0, x: 50 }}
-                animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 50 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="bg-[#0A0A0A] border border-[#222222] rounded-3xl p-10 relative overflow-hidden"
-                style={{
-                  boxShadow: '0 0 60px rgba(20, 184, 166, 0.15)'
-                }}
-              >
-                {/* Teal accent glow */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-[100px]" />
-                
-                <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-8">
-                    <motion.div 
-                      className="w-3 h-3 bg-teal-400 rounded-full"
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                    <h3 className="text-3xl font-bold text-teal-400">SIGMA Approach</h3>
-                  </div>
+const STATS = [
+  { target: 6,    label: 'PIPELINE STAGES' },
+  { target: 256,  label: 'PSD FREQUENCY BINS' },
+  { target: 512,  label: 'SPECTRUM DATA POINTS' },
+  { target: 1000, label: 'MAX CONSTELLATION POINTS' },
+];
 
-                  <ul className="space-y-5">
-                    {[
-                      'Automated Signal Hypothesis Engine',
-                      'Closed-loop validation: ML proposes, demodulator proves',
-                      'Forward Error Correction verification against real Viterbi decoding',
-                      'Explainable evidence trail for every validated hypothesis'
-                    ].map((item, i) => (
-                      <motion.li
-                        key={i}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-                        transition={{ duration: 0.4, delay: 0.4 + i * 0.1 }}
-                        className="flex items-start gap-4 text-gray-300"
-                      >
-                        <span className="text-teal-400 text-xl mt-1 font-bold">✓</span>
-                        <span className="leading-relaxed">{item}</span>
-                      </motion.li>
-                    ))}
-                  </ul>
-                </div>
-              </motion.div>
-            </div>
+const BENEFITS = [
+  {
+    title: 'Proof Over Confidence',
+    body: 'Systems output "82% QPSK" without verification. SIGMA attempts actual demodulation and Viterbi FEC decoding. If syndrome checks pass, the hypothesis is proven.',
+  },
+  {
+    title: 'Explainable Evidence',
+    body: 'Every validated signal carries a complete evidence trail: which sync method succeeded, what demodulator configuration worked, which FEC parameters decoded cleanly.',
+  },
+  {
+    title: 'Automation at Scale',
+    body: 'Process hundreds of unknown signals without manual parameter tuning. The hypothesis engine explores the parameter space systematically.',
+  },
+  {
+    title: 'Reduced False Positives',
+    body: 'By requiring physical demodulation success, SIGMA eliminates the false confidence of pure ML classifiers. Ambiguity is eliminated.',
+  },
+];
 
-            {/* Uncertainty Chain Callout */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={problemInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
-              className="mt-12 bg-[#0A0A0A] border border-blue-900/50 rounded-2xl p-8"
-              style={{
-                boxShadow: '0 0 40px rgba(59, 130, 246, 0.1)'
-              }}
-            >
-              <h4 className="text-2xl font-bold text-blue-400 mb-4 flex items-center gap-3">
-                <div className="w-2 h-8 bg-blue-500 rounded" />
-                The Uncertainty Chain
-              </h4>
-              <p className="text-gray-300 leading-relaxed text-lg">
-                In RF signal analysis, parameters are interdependent. If you guess the wrong sample rate, 
-                your carrier frequency estimate will be off. If the carrier frequency is wrong, synchronization 
-                fails. If synchronization fails, demodulation produces garbage. SIGMA breaks this chain by 
-                systematically testing hypotheses and validating each stage with physical signal processing, 
-                not just statistical confidence.
-              </p>
-            </motion.div>
-          </div>
-        </section>
+function ImpactSection() {
+  const navigate = useNavigate();
+  const [benefitHover, setBenefitHover] = useState<number | null>(null);
 
-        {/* PIPELINE SECTION */}
-        <section 
-          id="pipeline"
-          ref={pipelineRef}
-          className="min-h-screen flex items-center justify-center px-6 py-20"
-        >
-          <div className="max-w-7xl w-full">
-            {/* Title */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={pipelineInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-              transition={{ duration: 0.8 }}
-              className="mb-20 text-center"
-            >
-              <h2 className="text-6xl md:text-7xl font-black mb-4 bg-gradient-to-br from-white to-gray-500 bg-clip-text text-transparent">
-                Signal Processing<br />Pipeline
-              </h2>
-            </motion.div>
+  return (
+    <section id="impact"
+      style={{ padding: '6rem 1.5rem', maxWidth: '80rem', margin: '0 auto' }}>
 
-            {/* Pipeline Stages - Bento Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { stage: 1, title: 'Ingestion', desc: 'Parse .IQ and .wav files, extract metadata, normalize sample format', color: 'blue' },
-                { stage: 2, title: 'DSP Analysis', desc: 'FFT, PSD, spectrogram, bandwidth, SNR, carrier offset estimation', color: 'cyan' },
-                { stage: 3, title: 'Feature Extraction', desc: 'Statistical, spectral, and cyclostationary features for ML classifier', color: 'teal' },
-                { stage: 4, title: 'ML Classification', desc: 'Modulation recognition with confidence scoring', color: 'green' },
-                { stage: 5, title: 'Synchronization', desc: 'Carrier recovery, timing recovery, matched filtering', color: 'yellow' },
-                { stage: 6, title: 'Validation', desc: 'Demodulation attempt, FEC verification, hypothesis ranking', color: 'purple' }
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={pipelineInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-                  transition={{ duration: 0.5, delay: 0.2 + i * 0.1 }}
-                  className="bg-[#0A0A0A] border border-[#222222] rounded-2xl p-8 relative overflow-hidden group hover:border-teal-900 transition-colors duration-300"
-                  whileHover={{ y: -5 }}
-                >
-                  <div className={`absolute top-0 right-0 w-32 h-32 bg-${item.color}-500/5 rounded-full blur-[60px]`} />
-                  
-                  <div className="relative z-10">
-                    <div className="text-teal-400 font-mono text-sm mb-3 tracking-wider">
-                      STAGE {item.stage}
-                    </div>
-                    <h4 className="text-2xl font-bold text-white mb-4">
-                      {item.title}
-                    </h4>
-                    <p className="text-gray-400 text-sm leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </div>
+      {/* Section header */}
+      <ScanRevealBlock>
+        <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
+                    color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+          // IMPACT
+        </p>
+        <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
+                     fontSize: '2rem', color: '#E6EDF3', marginTop: '0.5rem',
+                     marginBottom: '3rem' }}>
+          Built for real signal work, not slideshows
+        </h2>
+      </ScanRevealBlock>
 
-                  {/* Hover effect line */}
-                  <motion.div 
-                    className="absolute bottom-0 left-0 h-[2px] w-0 bg-gradient-to-r from-teal-500 to-blue-500 group-hover:w-full transition-all duration-500"
-                  />
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Parameter Extraction */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={pipelineInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
-              className="mt-12 bg-[#0A0A0A] border border-[#222222] rounded-2xl p-10"
-            >
-              <h4 className="text-3xl font-bold text-white mb-8">Parameter Extraction</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                {[
-                  'Sampling Frequency',
-                  'Carrier Frequency',
-                  'Modulation Type',
-                  'Symbol Rate',
-                  'FEC Scheme',
-                  'Signal Bandwidth'
-                ].map((param, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={pipelineInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.3, delay: 1 + i * 0.05 }}
-                    className="flex items-center gap-3"
-                  >
-                    <motion.div 
-                      className="w-2 h-2 bg-teal-400 rounded-full"
-                      animate={{ scale: [1, 1.5, 1] }}
-                      transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
-                    />
-                    <span className="text-gray-300 font-mono text-sm">{param}</span>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="mt-10 pt-8 border-t border-[#222222]">
-                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-6">
-                  <h5 className="text-xl font-bold text-blue-400 mb-3">MVP Validation Scope</h5>
-                  <p className="text-gray-300 leading-relaxed">
-                    The minimum viable product focuses on BPSK and QPSK modulation schemes with convolutional 
-                    FEC codes. Each hypothesis undergoes real Viterbi decoding with syndrome checking to confirm 
-                    validity. This provides a concrete foundation for expanding to higher-order modulations.
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* IMPACT SECTION */}
-        <section 
-          id="impact"
-          ref={impactRef}
-          className="min-h-screen flex items-center justify-center px-6 py-20"
-        >
-          <div className="max-w-7xl w-full">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={impactInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-              transition={{ duration: 0.8 }}
-              className="mb-16 text-center"
-            >
-              <h2 className="text-6xl md:text-7xl font-black mb-4 bg-gradient-to-br from-white to-gray-500 bg-clip-text text-transparent">
-                Impact &<br />Benefits
-              </h2>
-            </motion.div>
-
-            {/* Core USP */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={impactInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="mb-12 bg-gradient-to-br from-[#0A0A0A] to-[#111111] border border-teal-900/50 rounded-3xl p-12 relative overflow-hidden"
-              style={{
-                boxShadow: '0 0 80px rgba(20, 184, 166, 0.2)'
-              }}
-            >
-              <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-[120px]" />
-              
-              <div className="relative z-10 text-center mb-10">
-                <motion.div 
-                  className="inline-block bg-teal-400/10 border border-teal-400/30 rounded-full px-6 py-2 mb-6"
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                >
-                  <span className="text-teal-400 font-bold text-sm tracking-wider">CORE USP</span>
-                </motion.div>
-                <h3 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
-                  Closed-Loop Signal<br />Hypothesis Validation
-                </h3>
-                <p className="text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
-                  SIGMA doesn't just predict modulation schemes—it proves them. Every hypothesis is 
-                  physically tested through the complete signal chain: synchronization, demodulation, 
-                  and forward error correction.
-                </p>
-              </div>
-
-              {/* Benefits Grid */}
-              <div className="grid md:grid-cols-2 gap-6">
-                {[
-                  {
-                    title: 'Proof Over Confidence',
-                    desc: 'Traditional systems output percentages like "82% QPSK" without verification. SIGMA attempts actual demodulation and FEC decoding. If Viterbi syndrome checks pass, the hypothesis is proven—not guessed.'
-                  },
-                  {
-                    title: 'Explainable Evidence',
-                    desc: 'Every validated signal comes with a complete evidence trail: which synchronization method succeeded, what demodulator configuration worked, and which FEC parameters decoded cleanly.'
-                  },
-                  {
-                    title: 'Automation at Scale',
-                    desc: 'Analysts can process hundreds of unknown signals without manual parameter tuning. The hypothesis engine explores the parameter space systematically, testing combinations that humans might never consider.'
-                  },
-                  {
-                    title: 'Reduced False Positives',
-                    desc: 'By requiring physical demodulation success, SIGMA eliminates the false confidence of pure ML classifiers. A hypothesis either fully decodes or it does not - there is no ambiguity.'
-                  }
-                ].map((benefit, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={impactInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                    transition={{ duration: 0.5, delay: 0.6 + i * 0.1 }}
-                    className="bg-[#0A0A0A] border border-[#222222] rounded-xl p-6 hover:border-teal-900 transition-colors duration-300"
-                  >
-                    <h4 className="text-xl font-bold text-teal-400 mb-3">{benefit.title}</h4>
-                    <p className="text-gray-400 text-sm leading-relaxed">{benefit.desc}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Final CTA */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={impactInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-              transition={{ duration: 0.6, delay: 1 }}
-              className="text-center"
-            >
-              <motion.button
-                onClick={handleLaunch}
-                className="group relative px-12 py-5 bg-white text-black font-bold text-xl rounded-lg overflow-hidden"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  boxShadow: '0 0 60px rgba(255,255,255,0.4), 0 20px 60px rgba(0,0,0,0.6)'
-                }}
-              >
-                <span className="relative z-10 flex items-center gap-3">
-                  Launch Workstation
-                  <motion.svg
-                    className="w-6 h-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    animate={{ x: [0, 5, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </motion.svg>
-                </span>
-              </motion.button>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="relative z-10 border-t border-[#222222] py-12 mt-20">
-          <div className="max-w-7xl mx-auto px-6 text-center">
-            <motion.p 
-              className="text-gray-500 text-sm font-mono"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-            >
-              SIGMA — Signal Intelligence & Guided Modulation Analysis
-            </motion.p>
-          </div>
-        </footer>
+      {/* Stat counters */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '1.5rem', marginBottom: '2rem' }}
+           className="lg:!grid-cols-4">
+        {STATS.map((s, i) => (
+          <StatCard key={s.label} target={s.target} label={s.label} delay={i * 100} />
+        ))}
       </div>
+
+      {/* Core USP panel */}
+      <ScanRevealBlock>
+        <div style={{
+          backgroundColor: '#11171D',
+          border: '1px solid #1E262E',
+          borderTop: '2px solid #34D399',
+          borderRadius: '4px',
+          padding: '2rem',
+          marginBottom: '1.5rem',
+        }}>
+          <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
+                       fontSize: '1.25rem', color: '#E6EDF3', marginBottom: '0.75rem' }}>
+            Closed-Loop Signal Hypothesis Validation
+          </h3>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
+                      color: '#E6EDF3', lineHeight: 1.7 }}>
+            SIGMA doesn't predict modulation schemes — it proves them. Every hypothesis is
+            physically tested through the complete signal chain: synchronization, demodulation,
+            and forward error correction. A hypothesis either fully decodes or it does not.
+          </p>
+        </div>
+      </ScanRevealBlock>
+
+      {/* Benefits grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)',
+                    gap: '1.5rem', marginBottom: '3rem' }}
+           className="md:!grid-cols-2">
+        {BENEFITS.map((b, i) => (
+          <ScanRevealBlock key={b.title} delay={i * 100} duration={700}>
+            <div
+              onMouseEnter={() => setBenefitHover(i)}
+              onMouseLeave={() => setBenefitHover(null)}
+              style={{
+                backgroundColor: '#11171D',
+                border: `1px solid ${benefitHover === i ? '#34D399' : '#1E262E'}`,
+                borderRadius: '4px',
+                padding: '1.5rem',
+                transition: 'border-color 150ms ease',
+              }}
+            >
+              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                          color: '#34D399', fontSize: '1rem', marginBottom: '0.5rem' }}>
+                {b.title}
+              </p>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
+                          color: '#8A939D', lineHeight: 1.6 }}>
+                {b.body}
+              </p>
+            </div>
+          </ScanRevealBlock>
+        ))}
+      </div>
+
+      {/* Final CTA */}
+      <div style={{ textAlign: 'center' }}>
+        <MagneticButton
+          variant="primary"
+          onClick={() => smoothScrollTo('#upload')}
+        >
+          Launch Workstation&nbsp;
+          <span style={{
+            display: 'inline-block',
+            transition: 'transform 150ms ease',
+          }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.transform = 'translateX(4px)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.transform = 'translateX(0)'; }}
+          >→</span>
+        </MagneticButton>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T11d — Footer
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Footer() {
+  return (
+    <footer style={{
+      borderTop: '1px solid #1E262E',
+      padding: '1.5rem 1.5rem',
+      backgroundColor: '#0A0E12',
+    }}>
+      <div style={{
+        maxWidth: '80rem',
+        margin: '0 auto',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}>
+        <span style={{ fontFamily: '"JetBrains Mono", monospace',
+                       fontSize: '0.75rem', color: '#8A939D' }}>
+          SIGMA
+        </span>
+        <span style={{ fontFamily: '"JetBrains Mono", monospace',
+                       fontSize: '0.75rem', color: '#8A939D' }}>
+          © 2026 SIGMA Project
+        </span>
+      </div>
+    </footer>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T9 — Hero section
+// ─────────────────────────────────────────────────────────────────────────────
+
+function HeroSection() {
+  const heroRef = useRef<HTMLElement>(null);
+  const primaryBtnRef = useRef<HTMLButtonElement>(null);
+  const secondaryBtnRef = useRef<HTMLButtonElement>(null);
+  const isNarrow     = useMediaQuery('(max-width: 767px)');
+  const prefersRed   = useMediaQuery('(prefers-reduced-motion: reduce)');
+
+  // Arrow span hover handled inline — translateX(4px) on hover only
+  const [arrowHovered, setArrowHovered] = useState(false);
+
+  return (
+    <section
+      ref={heroRef}
+      style={{
+        position: 'relative',
+        minHeight: '100dvh',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {/* WebThreads background layer */}
+      <div
+        aria-hidden="true"
+        role="none"
+        style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}
+      >
+        {!isNarrow ? (
+          <WebThreads
+            color1="#22D3EE"
+            color2="#34D399"
+            color3="#E6EDF3"
+            speed={prefersRed ? 0.01 : 0.15}
+            threadCount={7}
+            frequency={4.0}
+            spread={0.22}
+            taper={0.9}
+            position={0.5}
+            fanMode="center"
+            glow={0.018}
+            falloff={0.65}
+            thickness={1.2}
+            brightness={0.55}
+            opacity={0.9}
+            mirror={true}
+            shimmer={false}
+            grain={true}
+            grainIntensity={0.04}
+            mouseInteraction={!prefersRed}
+            mouseStrength={0.25}
+          />
+        ) : (
+          <div
+            className="web-threads-fallback"
+            style={{ position: 'absolute', inset: 0 }}
+          />
+        )}
+      </div>
+
+      {/* Reticle cursor */}
+      <ReticleCursor heroRef={heroRef as RefObject<HTMLElement>} />
+
+      {/* Content layer */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          textAlign: 'center',
+          padding: '0 1.5rem',
+          maxWidth: '64rem',
+          margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '1.5rem',
+        }}
+      >
+        {/* Eyebrow */}
+        <p style={{
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: '0.75rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.2em',
+          color: '#8A939D',
+        }}>
+          Signal Intelligence Workstation
+        </p>
+
+        {/* Headline — gradient text fill */}
+        <h1 style={{
+          fontFamily: 'Inter, sans-serif',
+          fontWeight: 900,
+          fontSize: 'clamp(2.5rem, 8vw, 6rem)',
+          lineHeight: 0.95,
+          letterSpacing: '-0.02em',
+          background: 'linear-gradient(135deg, #22D3EE 0%, #34D399 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          margin: 0,
+        }}>
+          Automated<br/>
+          signal<br/>
+          intelligence<br/>
+          &amp; analysis
+        </h1>
+
+        {/* Supporting copy */}
+        <p style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '1rem',
+          color: '#8A939D',
+          maxWidth: '30rem',
+          lineHeight: 1.6,
+        }}>
+          Closed-loop hypothesis validation for unknown RF signals —
+          from raw IQ to demodulated bitstream.
+        </p>
+
+        {/* CTA row */}
+        <div style={{
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+        }}>
+          <MagneticButton
+            ref={primaryBtnRef as React.RefObject<HTMLButtonElement>}
+            variant="primary"
+            onClick={() => smoothScrollTo('#upload')}
+          >
+            Launch Workstation&nbsp;
+            <span
+              style={{
+                display: 'inline-block',
+                transition: 'transform 150ms ease',
+                transform: arrowHovered ? 'translateX(4px)' : 'translateX(0)',
+              }}
+              onMouseEnter={() => setArrowHovered(true)}
+              onMouseLeave={() => setArrowHovered(false)}
+            >
+              →
+            </span>
+          </MagneticButton>
+
+          <MagneticButton
+            ref={secondaryBtnRef as React.RefObject<HTMLButtonElement>}
+            variant="secondary"
+            aria-disabled="true"
+            title="Documentation coming soon"
+            onClick={(e) => e.preventDefault()}
+          >
+            View Documentation
+          </MagneticButton>
+        </div>
+
+        {/* Scroll indicator — opacity pulse only, no translateY */}
+        <div
+          aria-hidden="true"
+          className="scroll-indicator"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '4px',
+            marginTop: '1rem',
+          }}
+        >
+          <span style={{ fontFamily: '"JetBrains Mono", monospace',
+                         fontSize: '0.65rem', color: '#8A939D', letterSpacing: '0.15em' }}>
+            SCROLL
+          </span>
+          <div style={{ width: '2px', height: '40px', backgroundColor: '#1E262E' }}/>
+          <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+            <polyline points="0,0 4,6 8,0" stroke="#8A939D" strokeWidth="1" fill="none"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Default export — LandingView
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function LandingView({ onLaunch: _onLaunch }: LandingViewProps) {
+  return (
+    <div style={{ backgroundColor: '#0A0E12', minHeight: '100vh', overflowX: 'hidden' }}>
+      <Navbar />
+      <main>
+        {/* Navbar is 64px fixed — pad top of first section */}
+        <div style={{ paddingTop: '64px' }}>
+          <HeroSection />
+        </div>
+        <FeaturesSection />
+        <PipelineSection />
+        <UploadSection />
+        <ImpactSection />
+      </main>
+      <Footer />
     </div>
   );
 }

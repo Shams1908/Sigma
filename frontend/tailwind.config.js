@@ -11,9 +11,27 @@ export default {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
-      
-      // SIGMA Brand Colors
+
+      // Font families
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+
       colors: {
+        // ── Landing page redesign tokens ─────────────────────────────────
+        background:     '#0A0E12',
+        panel:          '#11171D',
+        'panel-raised': '#151C22',
+        border:         '#1E262E',
+        'signal-cyan':  '#22D3EE',
+        'signal-green': '#34D399',
+        'signal-amber': '#FBBF24',
+        'signal-red':   '#F87171',
+        'text-primary': '#E6EDF3',
+        'text-muted':   '#8A939D', // corrected from #6B7785 — passes WCAG AA (~5.1:1 on panel)
+
+        // ── Legacy Workstation tokens — DO NOT REMOVE ────────────────────
         'sigma-purple': {
           DEFAULT: '#6d28d9',
           50: '#faf5ff',
@@ -42,24 +60,20 @@ export default {
           900: '#134e4a',
           950: '#042f2e',
         },
-        
-        // Surface colors (solid materials)
         'sigma-surface': {
           darkest: '#000000',
           darker: '#0A0A0A',
           dark: '#111111',
           medium: '#1a1a1a',
         },
-        
-        // Border colors
         'sigma-border': {
           DEFAULT: '#222222',
           hover: '#333333',
           active: '#444444',
         },
       },
-      
-      // Custom box shadows with glows
+
+      // Custom box shadows (legacy — used by Workstation)
       boxShadow: {
         'glow-purple': '0 0 40px rgba(109, 40, 217, 0.3)',
         'glow-purple-lg': '0 0 80px rgba(109, 40, 217, 0.4)',
@@ -69,20 +83,18 @@ export default {
         'glow-blue': '0 0 40px rgba(59, 130, 246, 0.3)',
         'glow-white': '0 0 60px rgba(255, 255, 255, 0.4)',
       },
-      
+
       // Animation durations
       transitionDuration: {
         '400': '400ms',
         '600': '600ms',
         '800': '800ms',
       },
-      
-      // Custom animation curves
+
       transitionTimingFunction: {
         'sigma': 'cubic-bezier(0.22, 1, 0.36, 1)',
       },
-      
-      // Custom keyframe animations
+
       keyframes: {
         'fade-in': {
           '0%': { opacity: '0' },
@@ -104,14 +116,20 @@ export default {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.5' },
         },
+        // Landing page additions
+        'pulse-opacity': {
+          '0%, 100%': { opacity: '0.4' },
+          '50%': { opacity: '1' },
+        },
       },
-      
+
       animation: {
         'fade-in': 'fade-in 0.5s ease-out',
         'slide-up': 'slide-up 0.5s ease-out',
         'slide-down': 'slide-down 0.5s ease-out',
         'scale-in': 'scale-in 0.4s ease-out',
         'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'pulse-opacity': 'pulse-opacity 1.8s ease-in-out infinite',
       },
     },
   },
