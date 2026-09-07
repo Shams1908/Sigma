@@ -1,0 +1,18 @@
+{
+    "real_domain": {
+        "domain_name": "Real RadioML 2016.10A Test Set",
+        "model": "M5 1D CNN Baseline",
+        "input_format": "Raw IQ Waveforms [2, 128]",
+        "classes_evaluated": 11,
+        "accuracy": 0.5668181818181818,
+        "macro_f1": 0.5843679240233778
+    },
+    "synthetic_domain": {
+        "domain_name": "Synthetic M6.1 Evaluation Dataset",
+        "model": "M5 1D CNN Baseline (Frozen)",
+        "input_format": "Synthesized IQ Waveforms [2, 128]",
+        "classes_evaluated": 5,
+        "accuracy": 0.22177777777777777,
+        "macro_f1": 0.12442709235228304
+    }
+}

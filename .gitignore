@@ -11,6 +11,11 @@ env/
 .coverage
 htmlcov/
 
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
 # Node
 node_modules/
 dist/
@@ -31,10 +36,12 @@ Thumbs.db
 # RF / Project Data (placeholder extension blocks)
 *.iq
 *.wav
+*.bin
+*.dat
 data/
-datasets/raw/
-datasets/processed/
-datasets/synthetic/
+datasets/raw/*
+datasets/processed/*
+datasets/synthetic/*
 models/*.pt
 models/*.onnx
 models/*.pkl

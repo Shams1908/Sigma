@@ -1,0 +1,27 @@
+{
+    "model_integrity": {
+        "initial_md5_hash": "8a69430254987d587872edd2faf9c61d",
+        "final_md5_hash": "8a69430254987d587872edd2faf9c61d",
+        "weights_frozen": true
+    },
+    "refinement_parameters": {
+        "phase_noise_std": 0.015,
+        "channel_taps": [
+            0.9794042137487836,
+            0.19588084274975673,
+            0.04897021068743918
+        ],
+        "global_scale_factor": 0.02772618282339422
+    },
+    "performance_f1_comparison": {
+        "original_macro_f1": 0.12442709235228304,
+        "calibrated_macro_f1": 0.198926982604524,
+        "refined_macro_f1": 0.19576878967940564,
+        "delta_macro_f1_original": 0.0713416973271226
+    },
+    "entropy_check": {
+        "original_entropy": 0.04648648574948311,
+        "calibrated_entropy": 1.2036582231521606,
+        "refined_entropy": 1.215653657913208
+    }
+}
