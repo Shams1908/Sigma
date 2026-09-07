@@ -7,7 +7,6 @@ import React, {
   useState,
   useEffect,
   useRef,
-  useCallback,
   RefObject,
 } from 'react';
 import { motion } from 'framer-motion';
@@ -75,8 +74,8 @@ function ScanRevealBlock({ children, delay, duration = 800, className }: ScanRev
             bottom: 0,
             right: isRevealed ? '0%' : '100%',
             width: '2px',
-            background: '#22D3EE',
-            boxShadow: isRevealed ? 'none' : '0 0 8px #22D3EE',
+            background: '#6d28d9',
+            boxShadow: isRevealed ? 'none' : '0 0 8px #6d28d9',
             opacity: isRevealed ? 0 : 1,
             transition: isRevealed
               ? `right ${duration}ms cubic-bezier(0.16,1,0.3,1), opacity 50ms ease ${duration}ms`
@@ -176,7 +175,7 @@ function MagneticButton({ variant = 'secondary', children, style, ...props }: Ma
 
   const variantStyle: React.CSSProperties =
     variant === 'primary'
-      ? { backgroundColor: '#22D3EE', color: '#0A0E12', border: 'none' }
+      ? { backgroundColor: '#6d28d9', color: '#E6EDF3', border: 'none' }
       : {
           backgroundColor: 'transparent',
           border: '1px solid #1E262E',
@@ -190,16 +189,16 @@ function MagneticButton({ variant = 'secondary', children, style, ...props }: Ma
       onMouseEnter={(e) => {
         const btn = e.currentTarget;
         if (variant === 'primary') {
-          btn.style.backgroundColor = '#34D399';
+          btn.style.backgroundColor = '#14b8a6';
         } else {
-          btn.style.borderColor = '#22D3EE';
+          btn.style.borderColor = '#6d28d9';
           btn.style.color = '#E6EDF3';
         }
       }}
       onMouseLeave={(e) => {
         const btn = e.currentTarget;
         if (variant === 'primary') {
-          btn.style.backgroundColor = '#22D3EE';
+          btn.style.backgroundColor = '#6d28d9';
         } else {
           btn.style.borderColor = '#1E262E';
           btn.style.color = '#8A939D';
@@ -224,6 +223,7 @@ function ReticleCursor({ heroRef }: { heroRef: RefObject<HTMLElement> }) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInHero, setIsInHero] = useState(false);
+  const isInHeroRef = useRef(false); // ref mirror — readable inside rAF closure
 
   useEffect(() => {
     if (isTouch || prefersReduced) return;
@@ -233,11 +233,15 @@ function ReticleCursor({ heroRef }: { heroRef: RefObject<HTMLElement> }) {
     let rafId = 0;
 
     const loop = () => {
-      posX += (mouseX - posX) * 0.12;
-      posY += (mouseY - posY) * 0.12;
-      if (containerRef.current) {
-        containerRef.current.style.transform =
-          `translate(${(posX - 16).toFixed(1)}px, ${(posY - 16).toFixed(1)}px)`;
+      // Only interpolate and write DOM when cursor is inside the hero.
+      // Avoids burning a full rAF tick on every scroll frame outside the hero.
+      if (isInHeroRef.current) {
+        posX += (mouseX - posX) * 0.12;
+        posY += (mouseY - posY) * 0.12;
+        if (containerRef.current) {
+          containerRef.current.style.transform =
+            `translate(${(posX - 16).toFixed(1)}px, ${(posY - 16).toFixed(1)}px)`;
+        }
       }
       rafId = requestAnimationFrame(loop);
     };
@@ -251,8 +255,8 @@ function ReticleCursor({ heroRef }: { heroRef: RefObject<HTMLElement> }) {
     rafId = requestAnimationFrame(loop);
 
     const hero = heroRef.current;
-    const onEnter = () => setIsInHero(true);
-    const onLeave = () => setIsInHero(false);
+    const onEnter = () => { setIsInHero(true);  isInHeroRef.current = true;  };
+    const onLeave = () => { setIsInHero(false); isInHeroRef.current = false; };
     hero?.addEventListener('mouseenter', onEnter);
     hero?.addEventListener('mouseleave', onLeave);
 
@@ -292,12 +296,12 @@ function ReticleCursor({ heroRef }: { heroRef: RefObject<HTMLElement> }) {
     >
       <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
         {/* Four tick marks with 4px centre void */}
-        <line x1="16" y1="4"  x2="16" y2="12" stroke="#22D3EE" strokeWidth="1"/>
-        <line x1="16" y1="20" x2="16" y2="28" stroke="#22D3EE" strokeWidth="1"/>
-        <line x1="4"  y1="16" x2="12" y2="16" stroke="#22D3EE" strokeWidth="1"/>
-        <line x1="20" y1="16" x2="28" y2="16" stroke="#22D3EE" strokeWidth="1"/>
+        <line x1="16" y1="4"  x2="16" y2="12" stroke="#6d28d9" strokeWidth="1"/>
+        <line x1="16" y1="20" x2="16" y2="28" stroke="#6d28d9" strokeWidth="1"/>
+        <line x1="4"  y1="16" x2="12" y2="16" stroke="#6d28d9" strokeWidth="1"/>
+        <line x1="20" y1="16" x2="28" y2="16" stroke="#6d28d9" strokeWidth="1"/>
         {/* Outer ring */}
-        <circle cx="16" cy="16" r="8" stroke="#22D3EE" strokeWidth="1" opacity="0.4"/>
+        <circle cx="16" cy="16" r="8" stroke="#6d28d9" strokeWidth="1" opacity="0.4"/>
       </svg>
     </div>
   );
@@ -308,10 +312,11 @@ function ReticleCursor({ heroRef }: { heroRef: RefObject<HTMLElement> }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function Navbar() {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('');
 
   useEffect(() => {
-    const sections = ['features', 'pipeline', 'upload', 'impact'];
+    const sections = ['features', 'pipeline', 'impact'];
     const observers: IntersectionObserver[] = [];
 
     sections.forEach((id) => {
@@ -351,9 +356,7 @@ function Navbar() {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 2rem',
-        backgroundColor: 'rgba(17, 23, 29, 0.85)',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
+        backgroundColor: 'rgba(17, 23, 29, 0.97)',
         borderBottom: '1px solid #1E262E',
       }}
     >
@@ -391,7 +394,7 @@ function Navbar() {
 
       {/* Launch Workstation button */}
       <button
-        onClick={() => smoothScrollTo('#upload')}
+        onClick={() => navigate('/workstation')}
         style={{
           fontFamily: '"JetBrains Mono", monospace',
           fontSize: '0.75rem',
@@ -399,19 +402,19 @@ function Navbar() {
           letterSpacing: '0.1em',
           padding: '6px 16px',
           borderRadius: '2px',
-          border: '1px solid #22D3EE',
-          color: '#22D3EE',
+          border: '1px solid #6d28d9',
+          color: '#6d28d9',
           backgroundColor: 'transparent',
           cursor: 'pointer',
           transition: 'background-color 150ms ease, color 150ms ease',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#22D3EE';
-          e.currentTarget.style.color = '#0A0E12';
+          e.currentTarget.style.backgroundColor = '#6d28d9';
+          e.currentTarget.style.color = '#E6EDF3';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.backgroundColor = 'transparent';
-          e.currentTarget.style.color = '#22D3EE';
+          e.currentTarget.style.color = '#6d28d9';
         }}
       >
         Launch Workstation
@@ -421,223 +424,149 @@ function Navbar() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// T10 — Feature mini-visuals (static inline SVGs / canvas)
+// Problem & Solution section
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Spectrum Analysis — polyline with Gaussian peak
-function SpectrumMini() {
-  // y = 65 - 50 * exp(-((x-60)^2) / 200) sampled at x=5,10,...,120
-  const pts: string[] = [];
-  for (let x = 5; x <= 120; x += 5) {
-    const y = 65 - 50 * Math.exp(-Math.pow(x - 60, 2) / 200);
-    pts.push(`${x},${y.toFixed(1)}`);
-  }
-  return (
-    <svg width="120" height="80" viewBox="0 0 120 80" aria-hidden="true"
-         style={{ flexShrink: 0 }}>
-      <rect width="120" height="80" rx="2" fill="#0A0E12"/>
-      <line x1="0" y1="20" x2="120" y2="20" stroke="#1E262E" strokeWidth="0.5" strokeDasharray="3,3"/>
-      <line x1="0" y1="60" x2="120" y2="60" stroke="#1E262E" strokeWidth="0.5" strokeDasharray="3,3"/>
-      <polyline points={pts.join(' ')} fill="none" stroke="#22D3EE" strokeWidth="1.5"/>
-    </svg>
-  );
-}
+const TRADITIONAL_ITEMS = [
+  'Trial-and-error manual parameter adjustment',
+  'Uncertainty chain: one wrong guess breaks everything downstream',
+  'AI confidence scores without physical validation',
+  'Hours spent on false positives and dead ends',
+];
 
-// Waterfall View — canvas drawn once
-function WaterfallMini() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const W = 120, H = 80;
-    const img = ctx.createImageData(W, H);
-    for (let row = 0; row < H; row++) {
-      for (let col = 0; col < W; col++) {
-        const t = (Math.sin(col / 8) * 0.5 + 0.5) * (1 - Math.abs(row / 40 - 1));
-        let r, g, b;
-        if (t < 0.2) {
-          const l = t / 0.2;
-          r = Math.round(15 + l * 5);
-          g = Math.round(23 + l * 161);
-          b = Math.round(42 + l * 124);
-        } else if (t < 0.5) {
-          const l = (t - 0.2) / 0.3;
-          r = Math.round(20 + l * 235);
-          g = Math.round(184 + l * 71);
-          b = Math.round(166 + l * 89);
-        } else {
-          const l = (t - 0.5) / 0.5;
-          r = Math.round(255);
-          g = Math.round(255 - l * 89);
-          b = Math.round(255 - l * 89);
-        }
-        const i = (row * W + col) * 4;
-        img.data[i] = r; img.data[i+1] = g; img.data[i+2] = b; img.data[i+3] = 255;
-      }
-    }
-    ctx.putImageData(img, 0, 0);
-  }, []);
-  return (
-    <canvas
-      ref={canvasRef}
-      width={120}
-      height={80}
-      aria-hidden="true"
-      style={{ flexShrink: 0, imageRendering: 'pixelated' }}
-    />
-  );
-}
+const SIGMA_ITEMS = [
+  'Automated Signal Hypothesis Engine',
+  'Closed-loop validation: ML proposes, demodulator proves',
+  'Forward Error Correction verification against real Viterbi decoding',
+  'Explainable evidence trail for every validated hypothesis',
+];
 
-// Modulation Classification — confidence bars
-function ClassificationMini() {
-  const bars = [
-    { width: 104, opacity: 0.9 },  // QPSK 87%
-    { width: 13,  opacity: 0.5 },  // BPSK 11%
-    { width: 2,   opacity: 0.25 }, // 8PSK 2%
-    { width: 1,   opacity: 0.1 },  // QAM16 1%
-  ];
-  return (
-    <svg width="120" height="80" viewBox="0 0 120 80" aria-hidden="true"
-         style={{ flexShrink: 0 }}>
-      <rect width="120" height="80" rx="2" fill="#0A0E12"/>
-      {bars.map((b, i) => (
-        <g key={i} transform={`translate(0, ${8 + i * 18})`}>
-          <rect x="0" y="0" width="120" height="12" fill="#1E262E" rx="1"/>
-          <rect x="0" y="0" width={b.width} height="12" fill="#FBBF24"
-                fillOpacity={b.opacity} rx="1"/>
-        </g>
-      ))}
-    </svg>
-  );
-}
+function ProblemSolutionSection() {
+  const [leftHover, setLeftHover] = useState(false);
+  const [rightHover, setRightHover] = useState(false);
 
-// Constellation Mapping — QPSK dot clusters
-function ConstellationMini() {
-  // Four clusters at (18,22), (102,22), (18,58), (102,58)
-  // Each cluster: 8 dots with hardcoded offsets
-  const offsets = [
-    [-3,-2], [2,-3], [-1,3], [3,2], [0,-4], [4,0], [-2,4], [1,1],
-  ];
-  const centres = [[18,22],[102,22],[18,58],[102,58]] as [number,number][];
-  return (
-    <svg width="120" height="80" viewBox="0 0 120 80" aria-hidden="true"
-         style={{ flexShrink: 0 }}>
-      <rect width="120" height="80" rx="2" fill="#0A0E12"/>
-      {/* Crosshair axes */}
-      <line x1="0" y1="40" x2="120" y2="40" stroke="#1E262E" strokeWidth="0.5"/>
-      <line x1="60" y1="0" x2="60"  y2="80" stroke="#1E262E" strokeWidth="0.5"/>
-      {centres.map(([cx, cy], ci) =>
-        offsets.map(([dx, dy], di) => (
-          <circle key={`${ci}-${di}`}
-            cx={cx + dx} cy={cy + dy} r="2"
-            fill="#22D3EE" fillOpacity="0.6"/>
-        ))
-      )}
-    </svg>
-  );
-}
+  const cardBase: React.CSSProperties = {
+    backgroundColor: '#11171D',
+    border: '1px solid #1E262E',
+    borderRadius: '4px',
+    padding: '2rem',
+    transition: 'border-color 150ms ease',
+  };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// T10 — Features section
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface FeatureCardProps {
-  accent: string;
-  label: string;
-  name: string;
-  body: string;
-  mini: React.ReactNode;
-  delay: number;
-  wide?: boolean;
-}
-
-function FeatureCard({ accent, label, name, body, mini, delay, wide }: FeatureCardProps) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <ScanRevealBlock delay={delay} duration={700}>
-      <div
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          backgroundColor: '#11171D',
-          border: `1px solid ${hovered ? accent : '#1E262E'}`,
-          borderTop: `2px solid ${accent}`,
-          borderRadius: '4px',
-          padding: '1.5rem',
-          display: 'flex',
-          flexDirection: wide ? 'row' : 'column',
-          gap: '1.5rem',
-          alignItems: wide ? 'center' : 'flex-start',
-          transition: 'border-color 150ms ease',
-          height: '100%',
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.65rem',
-                      color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-            {label}
-          </p>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600,
-                      color: '#E6EDF3', fontSize: '1rem', marginTop: '4px' }}>
-            {name}
-          </p>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
-                      color: '#8A939D', lineHeight: 1.6, marginTop: '8px' }}>
-            {body}
-          </p>
-        </div>
-        <div style={{ flexShrink: 0 }}>{mini}</div>
-      </div>
-    </ScanRevealBlock>
-  );
-}
-
-function FeaturesSection() {
   return (
     <section
       id="features"
       style={{ padding: '6rem 1.5rem', maxWidth: '80rem', margin: '0 auto' }}
     >
       <ScanRevealBlock>
-        <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
-                    color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-          // FEATURES
-        </p>
         <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
-                     fontSize: '2rem', color: '#E6EDF3', marginTop: '0.5rem',
-                     marginBottom: '3rem' }}>
-          From raw capture to validated signal
+                     fontSize: '2rem', color: '#E6EDF3', marginBottom: '0.5rem' }}>
+          The Problem &amp; Solution
         </h2>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '1rem',
+                    color: '#8A939D', marginBottom: '3rem' }}>
+          Traditional RF analysis is broken. SIGMA fixes it.
+        </p>
       </ScanRevealBlock>
 
-      {/* Row 1: wide (7fr) | narrow (5fr) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '7fr 5fr',
+      {/* Two-column comparison */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',
                     gap: '1.5rem', marginBottom: '1.5rem' }}
            className="max-md:!grid-cols-1">
-        <FeatureCard accent="#22D3EE" label="Spectrum Analysis"
-          name="Frequency-domain decomposition"
-          body="FFT-derived power spectral density with peak detection and bandwidth estimation across the full capture."
-          mini={<SpectrumMini />} delay={0} wide />
-        <FeatureCard accent="#34D399" label="Waterfall View"
-          name="Time-frequency intensity map"
-          body="Scrolling spectrogram rendered row-by-row, revealing signal persistence, drift, and spectral occupancy over time."
-          mini={<WaterfallMini />} delay={100} />
+
+        {/* Left — Traditional Analysis */}
+        <ScanRevealBlock delay={0} duration={700}>
+          <div
+            onMouseEnter={() => setLeftHover(true)}
+            onMouseLeave={() => setLeftHover(false)}
+            style={{
+              ...cardBase,
+              border: `1px solid ${leftHover ? '#F87171' : '#1E262E'}`,
+              borderTop: '2px solid #F87171',
+            }}
+          >
+            <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.7rem',
+                        color: '#F87171', textTransform: 'uppercase',
+                        letterSpacing: '0.15em', marginBottom: '1rem' }}>
+              STATUS: LEGACY
+            </p>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                        fontSize: '1.1rem', color: '#F87171', marginBottom: '1.25rem' }}>
+              Traditional Analysis
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0,
+                         display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {TRADITIONAL_ITEMS.map((item) => (
+                <li key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <span style={{ color: '#F87171', fontWeight: 700,
+                                 fontSize: '1rem', flexShrink: 0, marginTop: '1px' }}>×</span>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
+                                 color: '#E6EDF3', lineHeight: 1.6 }}>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </ScanRevealBlock>
+
+        {/* Right — SIGMA Approach */}
+        <ScanRevealBlock delay={100} duration={700}>
+          <div
+            onMouseEnter={() => setRightHover(true)}
+            onMouseLeave={() => setRightHover(false)}
+            style={{
+              ...cardBase,
+              border: `1px solid ${rightHover ? '#14b8a6' : '#1E262E'}`,
+              borderTop: '2px solid #14b8a6',
+            }}
+          >
+            <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.7rem',
+                        color: '#14b8a6', textTransform: 'uppercase',
+                        letterSpacing: '0.15em', marginBottom: '1rem' }}>
+              STATUS: ACTIVE
+            </p>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                        fontSize: '1.1rem', color: '#14b8a6', marginBottom: '1.25rem' }}>
+              SIGMA Approach
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0,
+                         display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {SIGMA_ITEMS.map((item) => (
+                <li key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <span style={{ color: '#14b8a6', fontWeight: 700,
+                                 fontSize: '1rem', flexShrink: 0, marginTop: '1px' }}>✓</span>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
+                                 color: '#E6EDF3', lineHeight: 1.6 }}>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </ScanRevealBlock>
       </div>
 
-      {/* Row 2: narrow (5fr) | wide (7fr) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '5fr 7fr', gap: '1.5rem' }}
-           className="max-md:!grid-cols-1">
-        <FeatureCard accent="#FBBF24" label="Modulation Classification"
-          name="ML-ranked hypothesis candidates"
-          body="Convolutional classifier ranks modulation schemes by confidence. Each candidate undergoes physical demodulation and FEC verification before acceptance."
-          mini={<ClassificationMini />} delay={200} />
-        <FeatureCard accent="#22D3EE" label="Constellation Mapping"
-          name="IQ scatter diagram"
-          body="Phase-space plot of demodulated symbols. Tight clusters indicate successful synchronization and low EVM; scatter indicates sync failure."
-          mini={<ConstellationMini />} delay={300} wide />
-      </div>
+      {/* Uncertainty Chain callout */}
+      <ScanRevealBlock delay={200} duration={900}>
+        <div style={{
+          backgroundColor: '#151C22',
+          border: '1px solid #1E262E',
+          borderLeft: '4px solid #6d28d9',
+          borderRadius: '4px',
+          padding: '1.5rem 1.75rem',
+        }}>
+          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
+                      color: '#6d28d9', textTransform: 'uppercase',
+                      letterSpacing: '0.15em', marginBottom: '0.75rem' }}>
+            The Uncertainty Chain
+          </p>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.9375rem',
+                      color: '#E6EDF3', lineHeight: 1.7 }}>
+            In RF signal analysis, parameters are interdependent. If you guess the wrong sample
+            rate, your carrier frequency estimate will be off. If the carrier frequency is wrong,
+            synchronization fails. If synchronization fails, demodulation produces garbage. SIGMA
+            breaks this chain by systematically testing hypotheses and validating each stage with
+            physical signal processing, not just statistical confidence.
+          </p>
+        </div>
+      </ScanRevealBlock>
     </section>
   );
 }
@@ -649,17 +578,17 @@ function FeaturesSection() {
 type StageStatus = 'pending' | 'running' | 'completed';
 
 const PIPELINE_STAGES = [
-  { key: 'INGESTION',    label: 'STAGE 01' },
-  { key: 'DSP ANALYSIS', label: 'STAGE 02' },
-  { key: 'MODULATION',   label: 'STAGE 03' },
-  { key: 'DEMODULATION', label: 'STAGE 04' },
-  { key: 'FEC',          label: 'STAGE 05' },
-  { key: 'VALIDATION',   label: 'STAGE 06' },
+  { key: 'Ingestion',          label: 'STAGE 01', desc: 'Parse .IQ and .wav files, extract metadata, normalize sample format' },
+  { key: 'DSP Analysis',       label: 'STAGE 02', desc: 'FFT, PSD, spectrogram, bandwidth, SNR, carrier offset estimation' },
+  { key: 'Feature Extraction', label: 'STAGE 03', desc: 'Statistical, spectral, and cyclostationary features for ML classifier' },
+  { key: 'ML Classification',  label: 'STAGE 04', desc: 'Modulation recognition with confidence scoring' },
+  { key: 'Synchronization',    label: 'STAGE 05', desc: 'Carrier recovery, timing recovery, matched filtering' },
+  { key: 'Validation',         label: 'STAGE 06', desc: 'Demodulation attempt, FEC verification, hypothesis ranking' },
 ];
 
 function stageCircleColor(status: StageStatus): string {
-  if (status === 'completed') return '#34D399';
-  if (status === 'running')   return '#22D3EE';
+  if (status === 'completed') return '#14b8a6';
+  if (status === 'running')   return '#6d28d9';
   return '#1E262E';
 }
 
@@ -696,7 +625,7 @@ function PipelineSection() {
     return () => clearInterval(id);
   }, [isRevealed, hasPlayed, prefersReduced]);
 
-  const CHIP_PARAMS = ['fs', 'fc', 'modulation', 'symbol_rate', 'fec_scheme', 'bandwidth'];
+  const CHIP_PARAMS = ['Sampling Frequency', 'Carrier Frequency', 'Modulation Type', 'Symbol Rate', 'FEC Scheme', 'Signal Bandwidth'];
 
   return (
     <section id="pipeline"
@@ -704,14 +633,9 @@ function PipelineSection() {
 
       {/* Section header */}
       <ScanRevealBlock>
-        <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
-                    color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-          // PIPELINE
-        </p>
         <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
-                     fontSize: '2rem', color: '#E6EDF3', marginTop: '0.5rem',
-                     marginBottom: '3rem' }}>
-          Six stages, fully traced
+                     fontSize: '2rem', color: '#E6EDF3', marginBottom: '3rem' }}>
+          Signal Processing Pipeline
         </h2>
       </ScanRevealBlock>
 
@@ -759,16 +683,21 @@ function PipelineSection() {
                           whiteSpace: 'nowrap' }}>
                 {stage.key}
               </p>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.65rem',
+                          color: '#8A939D', textAlign: 'center', marginTop: '4px',
+                          maxWidth: '120px', lineHeight: 1.4 }}>
+                {stage.desc}
+              </p>
             </div>
             {/* Connector */}
             {i < PIPELINE_STAGES.length - 1 && (
               <div style={
                 isMobile
                   ? { width: '2px', height: '32px', marginLeft: '19px',
-                      backgroundColor: statuses[i] === 'completed' ? '#34D399' : '#1E262E',
+                      backgroundColor: statuses[i] === 'completed' ? '#14b8a6' : '#1E262E',
                       transition: 'background-color 300ms ease' }
                   : { flex: 1, height: '2px', marginTop: '-28px',
-                      backgroundColor: statuses[i] === 'completed' ? '#34D399' : '#1E262E',
+                      backgroundColor: statuses[i] === 'completed' ? '#14b8a6' : '#1E262E',
                       transition: 'background-color 300ms ease', minWidth: '16px' }
               }/>
             )}
@@ -778,6 +707,10 @@ function PipelineSection() {
 
       {/* Parameter chips */}
       <ScanRevealBlock>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                    fontSize: '1.1rem', color: '#E6EDF3', marginBottom: '1rem' }}>
+          Parameter Extraction
+        </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
           {CHIP_PARAMS.map((p) => (
             <span key={p} style={{
@@ -786,7 +719,7 @@ function PipelineSection() {
               border: '1px solid #1E262E', borderRadius: '2px',
               fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem', color: '#8A939D',
             }}>
-              <span style={{ color: '#22D3EE' }}>·</span>{p}
+              <span style={{ color: '#6d28d9' }}>·</span>{p}
             </span>
           ))}
         </div>
@@ -801,11 +734,13 @@ function PipelineSection() {
           <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.65rem',
                       color: '#FBBF24', textTransform: 'uppercase', letterSpacing: '0.15em',
                       marginBottom: '6px' }}>
-            MVP SCOPE
+            MVP Validation Scope
           </p>
           <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: '#E6EDF3', lineHeight: 1.6 }}>
-            Initial validation targets BPSK and QPSK modulation with convolutional FEC codes.
-            Each hypothesis undergoes real Viterbi decoding with syndrome checking before acceptance.
+            The minimum viable product focuses on BPSK and QPSK modulation schemes with
+            convolutional FEC codes. Each hypothesis undergoes real Viterbi decoding with
+            syndrome checking to confirm validity. This provides a concrete foundation for
+            expanding to higher-order modulations.
           </p>
         </div>
       </ScanRevealBlock>
@@ -814,240 +749,25 @@ function PipelineSection() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// T11b — Upload / Get Started section
+// T11c — Impact section: USP callout + benefits grid
 // ─────────────────────────────────────────────────────────────────────────────
-
-function UploadSection() {
-  const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const handleFiles = useCallback((files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const file = files[0];
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-    if (['iq', 'wav', 'raw'].includes(ext)) {
-      navigate('/workstation', { state: { file } });
-    }
-  }, [navigate]);
-
-  return (
-    <section id="upload"
-      style={{ padding: '6rem 1.5rem', maxWidth: '48rem', margin: '0 auto' }}>
-
-      {/* Section header */}
-      <ScanRevealBlock>
-        <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
-                    color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-          // GET STARTED
-        </p>
-        <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
-                     fontSize: '2rem', color: '#E6EDF3', marginTop: '0.5rem',
-                     marginBottom: '2rem' }}>
-          Load a signal, start analysing
-        </h2>
-      </ScanRevealBlock>
-
-      {/* Drop-zone + divider + demo link */}
-      <ScanRevealBlock duration={900}>
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".iq,.wav,.raw"
-          style={{ display: 'none' }}
-          onChange={(e) => handleFiles(e.target.files)}
-        />
-
-        {/* Drop-zone */}
-        <div
-          role="button"
-          aria-label="Drop signal file or click to browse"
-          tabIndex={0}
-          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-          onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
-          onDragLeave={() => setIsDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setIsDragOver(false);
-            handleFiles(e.dataTransfer.files);
-          }}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
-          style={{
-            border: `1px dashed ${isDragOver ? '#22D3EE' : '#1E262E'}`,
-            borderRadius: '4px',
-            padding: '4rem 2rem',
-            textAlign: 'center',
-            backgroundColor: isDragOver ? 'rgba(34,211,238,0.04)' : '#11171D',
-            transition: 'border-color 100ms ease, background-color 100ms ease',
-            cursor: 'default',
-          }}
-        >
-          {/* Upload icon */}
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none"
-               aria-hidden="true" style={{ margin: '0 auto 1rem' }}>
-            <circle cx="20" cy="20" r="18" stroke="#22D3EE" strokeWidth="1.5"/>
-            <line x1="20" y1="28" x2="20" y2="12" stroke="#22D3EE" strokeWidth="1.5"/>
-            <polyline points="14,18 20,12 26,18" fill="none" stroke="#22D3EE" strokeWidth="1.5"/>
-          </svg>
-
-          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.875rem',
-                      color: '#E6EDF3', textTransform: 'uppercase', letterSpacing: '0.1em',
-                      marginBottom: '0.5rem' }}>
-            DROP SIGNAL FILE
-          </p>
-          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
-                      color: '#8A939D', marginBottom: '1.5rem' }}>
-            Accepts .IQ · .WAV · .RAW
-          </p>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            style={{
-              fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
-              textTransform: 'uppercase', letterSpacing: '0.1em',
-              padding: '8px 20px', borderRadius: '2px',
-              border: '1px solid #1E262E', color: '#8A939D',
-              backgroundColor: 'transparent', cursor: 'pointer',
-              transition: 'border-color 150ms ease, color 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#22D3EE';
-              e.currentTarget.style.color = '#E6EDF3';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#1E262E';
-              e.currentTarget.style.color = '#8A939D';
-            }}
-          >
-            Browse Files
-          </button>
-        </div>
-
-        {/* OR divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1.5rem 0' }}>
-          <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #1E262E' }}/>
-          <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
-                         color: '#8A939D' }}>OR</span>
-          <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #1E262E' }}/>
-        </div>
-
-        {/* Demo signal — no mock data, navigates to Workstation directly */}
-        <div style={{ textAlign: 'center' }}>
-          <button
-            onClick={() => navigate('/workstation')}
-            style={{
-              fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
-              textTransform: 'uppercase', letterSpacing: '0.1em',
-              color: '#8A939D', background: 'transparent',
-              border: 'none', cursor: 'pointer',
-              transition: 'color 150ms ease',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#E6EDF3'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = '#8A939D'; }}
-          >
-            Load demonstration signal
-          </button>
-        </div>
-      </ScanRevealBlock>
-    </section>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// T11c — Impact section: useCountUp hook + stat cards + USP + benefits
-// ─────────────────────────────────────────────────────────────────────────────
-
-function useCountUp(target: number, isActive: boolean, duration = 1200): number {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!isActive) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setValue(target);
-      return;
-    }
-    const start = performance.now();
-    let rafId: number;
-    const raf = (now: number) => {
-      const p = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setValue(Math.round(eased * target));
-      if (p < 1) rafId = requestAnimationFrame(raf);
-    };
-    rafId = requestAnimationFrame(raf);
-    return () => cancelAnimationFrame(rafId);
-  }, [isActive, target, duration]);
-  return value;
-}
-
-interface StatCardProps {
-  target: number;
-  label: string;
-  delay: number;
-}
-
-function StatCard({ target, label, delay }: StatCardProps) {
-  const { ref, isRevealed } = useScanReveal({ delay, threshold: 0.3 });
-  const count = useCountUp(target, isRevealed);
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <div ref={ref as React.RefObject<HTMLDivElement>}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        backgroundColor: '#11171D',
-        border: `1px solid ${hovered ? '#22D3EE' : '#1E262E'}`,
-        borderRadius: '4px',
-        padding: '2rem',
-        transition: 'border-color 150ms ease',
-      }}>
-      <span style={{
-        fontFamily: '"JetBrains Mono", monospace',
-        fontWeight: 700,
-        fontSize: 'clamp(2rem, 5vw, 3.5rem)',
-        color: '#E6EDF3',
-        display: 'block',
-      }}>
-        {count.toLocaleString()}
-      </span>
-      <p style={{
-        fontFamily: '"JetBrains Mono", monospace',
-        fontSize: '0.65rem',
-        color: '#8A939D',
-        textTransform: 'uppercase',
-        letterSpacing: '0.15em',
-        marginTop: '4px',
-      }}>
-        {label}
-      </p>
-    </div>
-  );
-}
-
-const STATS = [
-  { target: 6,    label: 'PIPELINE STAGES' },
-  { target: 256,  label: 'PSD FREQUENCY BINS' },
-  { target: 512,  label: 'SPECTRUM DATA POINTS' },
-  { target: 1000, label: 'MAX CONSTELLATION POINTS' },
-];
 
 const BENEFITS = [
   {
     title: 'Proof Over Confidence',
-    body: 'Systems output "82% QPSK" without verification. SIGMA attempts actual demodulation and Viterbi FEC decoding. If syndrome checks pass, the hypothesis is proven.',
+    body: 'Traditional systems output percentages like \u201882% QPSK\u201d without verification. SIGMA attempts actual demodulation and FEC decoding. If Viterbi syndrome checks pass, the hypothesis is proven\u2014not guessed.',
   },
   {
     title: 'Explainable Evidence',
-    body: 'Every validated signal carries a complete evidence trail: which sync method succeeded, what demodulator configuration worked, which FEC parameters decoded cleanly.',
+    body: 'Every validated signal comes with a complete evidence trail: which synchronization method succeeded, what demodulator configuration worked, and which FEC parameters decoded cleanly.',
   },
   {
     title: 'Automation at Scale',
-    body: 'Process hundreds of unknown signals without manual parameter tuning. The hypothesis engine explores the parameter space systematically.',
+    body: 'Analysts can process hundreds of unknown signals without manual parameter tuning. The hypothesis engine explores the parameter space systematically, testing combinations that humans might never consider.',
   },
   {
     title: 'Reduced False Positives',
-    body: 'By requiring physical demodulation success, SIGMA eliminates the false confidence of pure ML classifiers. Ambiguity is eliminated.',
+    body: 'By requiring physical demodulation success, SIGMA eliminates the false confidence of pure ML classifiers. A hypothesis either fully decodes or it does not - there is no ambiguity.',
   },
 ];
 
@@ -1061,45 +781,36 @@ function ImpactSection() {
 
       {/* Section header */}
       <ScanRevealBlock>
-        <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem',
-                    color: '#8A939D', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-          // IMPACT
-        </p>
         <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
-                     fontSize: '2rem', color: '#E6EDF3', marginTop: '0.5rem',
-                     marginBottom: '3rem' }}>
-          Built for real signal work, not slideshows
+                     fontSize: '2rem', color: '#E6EDF3', marginBottom: '3rem' }}>
+          Impact &amp; Benefits
         </h2>
       </ScanRevealBlock>
-
-      {/* Stat counters */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: '1.5rem', marginBottom: '2rem' }}
-           className="lg:!grid-cols-4">
-        {STATS.map((s, i) => (
-          <StatCard key={s.label} target={s.target} label={s.label} delay={i * 100} />
-        ))}
-      </div>
 
       {/* Core USP panel */}
       <ScanRevealBlock>
         <div style={{
           backgroundColor: '#11171D',
           border: '1px solid #1E262E',
-          borderTop: '2px solid #34D399',
+          borderTop: '2px solid #14b8a6',
           borderRadius: '4px',
           padding: '2rem',
           marginBottom: '1.5rem',
         }}>
+          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.7rem',
+                      color: '#14b8a6', textTransform: 'uppercase',
+                      letterSpacing: '0.15em', marginBottom: '0.75rem' }}>
+            CORE USP
+          </p>
           <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700,
                        fontSize: '1.25rem', color: '#E6EDF3', marginBottom: '0.75rem' }}>
             Closed-Loop Signal Hypothesis Validation
           </h3>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.9375rem',
                       color: '#E6EDF3', lineHeight: 1.7 }}>
-            SIGMA doesn't predict modulation schemes — it proves them. Every hypothesis is
+            SIGMA doesn&apos;t just predict modulation schemes—it proves them. Every hypothesis is
             physically tested through the complete signal chain: synchronization, demodulation,
-            and forward error correction. A hypothesis either fully decodes or it does not.
+            and forward error correction.
           </p>
         </div>
       </ScanRevealBlock>
@@ -1115,14 +826,14 @@ function ImpactSection() {
               onMouseLeave={() => setBenefitHover(null)}
               style={{
                 backgroundColor: '#11171D',
-                border: `1px solid ${benefitHover === i ? '#34D399' : '#1E262E'}`,
+                border: `1px solid ${benefitHover === i ? '#14b8a6' : '#1E262E'}`,
                 borderRadius: '4px',
                 padding: '1.5rem',
                 transition: 'border-color 150ms ease',
               }}
             >
               <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600,
-                          color: '#34D399', fontSize: '1rem', marginBottom: '0.5rem' }}>
+                          color: '#14b8a6', fontSize: '1rem', marginBottom: '0.5rem' }}>
                 {b.title}
               </p>
               <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
@@ -1138,7 +849,7 @@ function ImpactSection() {
       <div style={{ textAlign: 'center' }}>
         <MagneticButton
           variant="primary"
-          onClick={() => smoothScrollTo('#upload')}
+          onClick={() => navigate('/workstation')}
         >
           Launch Workstation&nbsp;
           <span style={{
@@ -1190,6 +901,7 @@ function Footer() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function HeroSection() {
+  const navigate = useNavigate();
   const heroRef = useRef<HTMLElement>(null);
   const primaryBtnRef = useRef<HTMLButtonElement>(null);
   const secondaryBtnRef = useRef<HTMLButtonElement>(null);
@@ -1220,8 +932,8 @@ function HeroSection() {
       >
         {!isNarrow ? (
           <WebThreads
-            color1="#22D3EE"
-            color2="#34D399"
+            color1="#6d28d9"
+            color2="#14b8a6"
             color3="#E6EDF3"
             speed={prefersRed ? 0.01 : 0.15}
             threadCount={7}
@@ -1286,7 +998,7 @@ function HeroSection() {
           fontSize: 'clamp(2.5rem, 8vw, 6rem)',
           lineHeight: 0.95,
           letterSpacing: '-0.02em',
-          background: 'linear-gradient(135deg, #22D3EE 0%, #34D399 100%)',
+          background: 'linear-gradient(135deg, #6d28d9 0%, #14b8a6 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
@@ -1320,7 +1032,7 @@ function HeroSection() {
           <MagneticButton
             ref={primaryBtnRef as React.RefObject<HTMLButtonElement>}
             variant="primary"
-            onClick={() => smoothScrollTo('#upload')}
+            onClick={() => navigate('/workstation')}
           >
             Launch Workstation&nbsp;
             <span
@@ -1386,9 +1098,8 @@ export default function LandingView({ onLaunch: _onLaunch }: LandingViewProps) {
         <div style={{ paddingTop: '64px' }}>
           <HeroSection />
         </div>
-        <FeaturesSection />
+        <ProblemSolutionSection />
         <PipelineSection />
-        <UploadSection />
         <ImpactSection />
       </main>
       <Footer />
