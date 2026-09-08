@@ -1,24 +1,30 @@
 """
 Symbol rate estimation from a complex IQ signal.
 
-Two independent methods are implemented and their results averaged:
+Two independent methods are implemented and their results combined:
 
 1. Cyclostationary / spectral correlation (primary):
    A digitally modulated signal has cyclostationary features at multiples of
-   the symbol rate.  Squaring the absolute value of the signal and computing
-   its FFT reveals peaks at f = k·Rs (k=1,2,…).  The first significant
-   peak above DC gives Rs.
+   the symbol rate. Squaring the absolute value of the signal (|iq|^2) and computing
+   its FFT reveals peaks at f = k·Rs (k=1,2,…). The first significant peak above DC gives Rs.
 
 2. Autocorrelation zero-crossing (secondary):
    The autocorrelation of |iq|² has zeros near multiples of the symbol
-   period T = 1/Rs.  The lag of the first zero crossing ≈ T.
+   period T = 1/Rs. The lag of the first zero crossing ≈ T.
 
-The two estimates are averaged (median when they diverge by more than 50 %).
+Assumptions & Limitations:
+- Reliable symbol rate estimation requires digital pulse-shaped modulations (e.g. BPSK, QPSK, QAM)
+  possessing distinct cyclostationary envelope variations.
+- For unmodulated CW tones, analog FM/AM signals, pure AWGN noise, or constant-envelope modulations without
+  shaping filters, symbol rate is undefined and None is returned.
+- Does not fabricate estimates or use arbitrary sample_rate fraction fallbacks.
 """
 from __future__ import annotations
 
 import numpy as np
 from scipy.signal import find_peaks  # type: ignore[import]
+
+from dsp.fft import canonical_to_complex
 
 
 def estimate_symbol_rate(
@@ -26,21 +32,38 @@ def estimate_symbol_rate(
     sample_rate: float,
     min_rate: float = 100.0,
     max_rate: float | None = None,
-) -> float:
+) -> float | None:
     """
     Estimate symbol rate (symbols / second) from a complex IQ signal.
 
     Args:
-        iq:          1-D complex IQ array.
+        iq:          1-D complex IQ array or [2, N] canonical IQ array.
         sample_rate: Sample rate in Hz.
         min_rate:    Minimum plausible symbol rate (Hz).
-        max_rate:    Maximum plausible symbol rate (Hz).  Defaults to
-                     sample_rate / 2.
+        max_rate:    Maximum plausible symbol rate (Hz). Defaults to sample_rate / 2.
 
     Returns:
-        Estimated symbol rate in symbols/second.
+        Estimated symbol rate in symbols/second, or None if unestimated/unsupported.
     """
-    iq = np.asarray(iq, dtype=np.complex64)
+
+    if sample_rate <= 0:
+        raise ValueError(f"Sample rate must be positive, got {sample_rate}")
+
+    if isinstance(iq, np.ndarray) and iq.ndim == 2:
+        iq = canonical_to_complex(iq)
+    else:
+        iq = np.asarray(iq, dtype=np.complex64)
+
+    if iq.ndim != 1 or len(iq) == 0 or not np.all(np.isfinite(iq)):
+        return None
+
+    if np.all(iq == 0):
+        return None
+
+    # Cap analysis length for symbol rate estimation to avoid excessive FFT overhead
+    if len(iq) > 16384:
+        iq = iq[:16384]
+
     if max_rate is None:
         max_rate = sample_rate / 2.0
 
@@ -48,30 +71,30 @@ def estimate_symbol_rate(
 
     try:
         rs_spectral = _cyclostationary_estimate(iq, sample_rate, min_rate, max_rate)
-        if rs_spectral is not None:
+        if rs_spectral is not None and rs_spectral > 0:
             estimates.append(rs_spectral)
     except Exception:  # noqa: BLE001
         pass
 
     try:
         rs_autocorr = _autocorr_estimate(iq, sample_rate, min_rate, max_rate)
-        if rs_autocorr is not None:
+        if rs_autocorr is not None and rs_autocorr > 0:
             estimates.append(rs_autocorr)
     except Exception:  # noqa: BLE001
         pass
 
     if not estimates:
-        # Last-resort fallback: assume SPS ≈ 4
-        return float(sample_rate / 4.0)
+        return None
 
     if len(estimates) == 2:
         ratio = max(estimates) / (min(estimates) + 1e-9)
         if ratio > 1.5:
             # Estimates diverge — trust the cyclostationary one
-            return estimates[0]
+            return float(estimates[0])
         return float(np.mean(estimates))
 
-    return estimates[0]
+    return float(estimates[0])
+
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
