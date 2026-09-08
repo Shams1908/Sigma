@@ -27,6 +27,13 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
   const { scrollYProgress } = useScroll();
   const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
 
+  // Parallax offsets — each section heading drifts upward as the page scrolls,
+  // giving the continuous background a sense of depth. Ranges are intentionally
+  // subtle so they never fight the WebGL background.
+  const problemHeadingY  = useTransform(smoothProgress, [0.05, 0.35], [24, -24]);
+  const pipelineHeadingY = useTransform(smoothProgress, [0.30, 0.65], [24, -24]);
+  const impactHeadingY   = useTransform(smoothProgress, [0.60, 0.95], [24, -24]);
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({
@@ -188,11 +195,22 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               </motion.h1>
             </div>
 
+            {/* Supporting text */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={heroInView ? { opacity: 1 } : { opacity: 0 }}
+              transition={{ duration: 0.9, delay: 1.15, ease: 'easeOut' }}
+              className="text-center text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed"
+            >
+              From raw RF data to validated signal hypotheses, SIGMA structures
+              and automates the analysis path.
+            </motion.p>
+
             {/* Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-              transition={{ duration: 0.6, delay: 1.2 }}
+              transition={{ duration: 0.6, delay: 1.4 }}
               className="flex flex-col sm:flex-row items-center justify-center gap-4"
             >
               {/* Primary Button */}
@@ -238,7 +256,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
             <motion.div
               initial={{ opacity: 0 }}
               animate={heroInView ? { opacity: 1 } : { opacity: 0 }}
-              transition={{ duration: 0.6, delay: 1.5 }}
+              transition={{ duration: 0.6, delay: 1.8 }}
               className="absolute bottom-10 left-1/2 -translate-x-1/2"
             >
               <motion.div
@@ -260,8 +278,9 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
           className="min-h-screen flex items-center justify-center px-6 py-20 relative"
         >
           <div className="max-w-7xl w-full">
-            {/* Section Title */}
+            {/* Section Title — parallax on scroll */}
             <motion.div
+              style={{ y: problemHeadingY }}
               initial={{ opacity: 0, y: 30 }}
               animate={problemInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
               transition={{ duration: 0.8 }}
@@ -271,20 +290,23 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                 The Problem &<br />Solution
               </h2>
               <p className="text-center text-gray-400 text-lg max-w-2xl mx-auto">
-                Traditional RF analysis is broken. SIGMA fixes it.
+                RF analysis often depends on iterative parameter tuning and hypotheses
+                that are difficult to validate. SIGMA turns that process into a
+                structured, evidence-driven pipeline.
               </p>
             </motion.div>
 
             {/* Comparison Cards */}
             <div className="grid lg:grid-cols-2 gap-8">
-              {/* Traditional Analysis Card */}
+              {/* Traditional Analysis Card — enters from left with perspective tilt */}
               <motion.div
-                initial={{ opacity: 0, x: -50 }}
-                animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -50 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+                initial={{ opacity: 0, x: -60, rotateY: -8 }}
+                animate={problemInView ? { opacity: 1, x: 0, rotateY: 0 } : { opacity: 0, x: -60, rotateY: -8 }}
+                transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
                 className="bg-[#0A0A0A] border border-[#222222] rounded-3xl p-10 relative overflow-hidden"
                 style={{
-                  boxShadow: '0 0 60px rgba(239, 68, 68, 0.1)'
+                  boxShadow: '0 0 60px rgba(239, 68, 68, 0.1)',
+                  transformPerspective: 1200,
                 }}
               >
                 {/* Red accent glow */}
@@ -300,37 +322,53 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                     <h3 className="text-3xl font-bold text-red-400">Traditional Analysis</h3>
                   </div>
 
-                  <ul className="space-y-5">
+                  <ul className="space-y-6">
                     {[
-                      'Trial-and-error manual parameter adjustment',
-                      'Uncertainty chain: one wrong guess breaks everything downstream',
-                      'AI confidence scores without physical validation',
-                      'Hours spent on false positives and dead ends'
+                      {
+                        title: 'Trial-and-error parameter tuning',
+                        sub:   'Analysts repeatedly adjust parameters to find a workable interpretation.',
+                      },
+                      {
+                        title: 'Uncertainty propagates downstream',
+                        sub:   'An incorrect early assumption can affect every later processing stage.',
+                      },
+                      {
+                        title: 'Hypotheses are difficult to validate',
+                        sub:   'A modulation guess may look plausible without proving it is correct.',
+                      },
+                      {
+                        title: 'False positives create dead ends',
+                        sub:   'Incorrect interpretations lead to wasted analysis time and repeated manual tuning.',
+                      },
                     ].map((item, i) => (
                       <motion.li
                         key={i}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                        transition={{ duration: 0.4, delay: 0.4 + i * 0.1 }}
-                        className="flex items-start gap-4 text-gray-300"
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -16 }}
+                        transition={{ duration: 0.45, delay: 0.35 + i * 0.12, ease: 'easeOut' }}
+                        className="flex items-start gap-4"
                       >
-                        <span className="text-red-400 text-xl mt-1 font-bold">×</span>
-                        <span className="leading-relaxed">{item}</span>
+                        <span className="text-red-400 text-xl mt-0.5 font-bold flex-shrink-0">×</span>
+                        <div>
+                          <p className="text-white font-semibold leading-snug">{item.title}</p>
+                          <p className="text-gray-400 text-sm leading-relaxed mt-0.5">{item.sub}</p>
+                        </div>
                       </motion.li>
                     ))}
                   </ul>
                 </div>
               </motion.div>
 
-              {/* SIGMA Approach Card */}
+              {/* SIGMA Approach Card — enters from right with perspective tilt */}
               <motion.div
-                initial={{ opacity: 0, x: 50 }}
-                animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 50 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="bg-[#0A0A0A] border border-[#222222] rounded-3xl p-10 relative overflow-hidden"
+                initial={{ opacity: 0, x: 60, rotateY: 8 }}
+                animate={problemInView ? { opacity: 1, x: 0, rotateY: 0 } : { opacity: 0, x: 60, rotateY: 8 }}
+                transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 style={{
-                  boxShadow: '0 0 60px rgba(20, 184, 166, 0.15)'
+                  boxShadow: '0 0 60px rgba(20, 184, 166, 0.15)',
+                  transformPerspective: 1200,
                 }}
+                className="bg-[#0A0A0A] border border-[#222222] rounded-3xl p-10 relative overflow-hidden"
               >
                 {/* Teal accent glow */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-[100px]" />
@@ -345,22 +383,37 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                     <h3 className="text-3xl font-bold text-teal-400">SIGMA Approach</h3>
                   </div>
 
-                  <ul className="space-y-5">
+                  <ul className="space-y-6">
                     {[
-                      'Automated Signal Hypothesis Engine',
-                      'Closed-loop validation: ML proposes, demodulator proves',
-                      'Forward Error Correction verification against real Viterbi decoding',
-                      'Explainable evidence trail for every validated hypothesis'
+                      {
+                        title: 'Automated signal analysis',
+                        sub:   'Extracts measurable characteristics from raw IQ/WAV data to establish a reliable starting point.',
+                      },
+                      {
+                        title: 'Hypothesis-driven processing',
+                        sub:   'Uses extracted evidence to investigate plausible signal interpretations instead of relying only on manual trial and error.',
+                      },
+                      {
+                        title: 'Closed-loop validation',
+                        sub:   'Candidate interpretations are tested through downstream synchronization, demodulation and reconstruction evidence.',
+                      },
+                      {
+                        title: 'Explainable evidence',
+                        sub:   'Validated hypotheses are supported by observable signal-processing results rather than unexplained confidence scores.',
+                      },
                     ].map((item, i) => (
                       <motion.li
                         key={i}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-                        transition={{ duration: 0.4, delay: 0.4 + i * 0.1 }}
-                        className="flex items-start gap-4 text-gray-300"
+                        initial={{ opacity: 0, x: 16 }}
+                        animate={problemInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 16 }}
+                        transition={{ duration: 0.45, delay: 0.45 + i * 0.12, ease: 'easeOut' }}
+                        className="flex items-start gap-4"
                       >
-                        <span className="text-teal-400 text-xl mt-1 font-bold">✓</span>
-                        <span className="leading-relaxed">{item}</span>
+                        <span className="text-teal-400 text-xl mt-0.5 font-bold flex-shrink-0">✓</span>
+                        <div>
+                          <p className="text-white font-semibold leading-snug">{item.title}</p>
+                          <p className="text-gray-400 text-sm leading-relaxed mt-0.5">{item.sub}</p>
+                        </div>
                       </motion.li>
                     ))}
                   </ul>
@@ -368,11 +421,11 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               </motion.div>
             </div>
 
-            {/* Uncertainty Chain Callout */}
+            {/* Uncertainty Chain Callout — fades in after the cards settle */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={problemInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
+              initial={{ opacity: 0, y: 24 }}
+              animate={problemInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+              transition={{ duration: 0.7, delay: 1.05, ease: 'easeOut' }}
               className="mt-12 bg-[#0A0A0A] border border-blue-900/50 rounded-2xl p-8"
               style={{
                 boxShadow: '0 0 40px rgba(59, 130, 246, 0.1)'
@@ -400,8 +453,9 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
           className="min-h-screen flex items-center justify-center px-6 py-20"
         >
           <div className="max-w-7xl w-full">
-            {/* Title */}
+            {/* Title — parallax on scroll */}
             <motion.div
+              style={{ y: pipelineHeadingY }}
               initial={{ opacity: 0, y: 30 }}
               animate={pipelineInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
               transition={{ duration: 0.8 }}
@@ -412,26 +466,56 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               </h2>
             </motion.div>
 
-            {/* Pipeline Stages - Bento Grid */}
+            {/* Pipeline Stages — each card clips up from below with increasing delay */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
-                { stage: 1, title: 'Ingestion', desc: 'Parse .IQ and .wav files, extract metadata, normalize sample format', color: 'blue' },
-                { stage: 2, title: 'DSP Analysis', desc: 'FFT, PSD, spectrogram, bandwidth, SNR, carrier offset estimation', color: 'cyan' },
-                { stage: 3, title: 'Feature Extraction', desc: 'Statistical, spectral, and cyclostationary features for ML classifier', color: 'teal' },
-                { stage: 4, title: 'ML Classification', desc: 'Modulation recognition with confidence scoring', color: 'green' },
-                { stage: 5, title: 'Synchronization', desc: 'Carrier recovery, timing recovery, matched filtering', color: 'yellow' },
-                { stage: 6, title: 'Validation', desc: 'Demodulation attempt, FEC verification, hypothesis ranking', color: 'purple' }
+                {
+                  stage: 1, color: 'blue',
+                  title: 'Ingestion',
+                  desc: 'Load IQ/WAV recordings and prepare raw samples for analysis.',
+                },
+                {
+                  stage: 2, color: 'cyan',
+                  title: 'DSP Analysis',
+                  desc: 'Analyze time- and frequency-domain behaviour to characterize the signal using FFT, PSD, and spectrogram techniques.',
+                },
+                {
+                  stage: 3, color: 'teal',
+                  title: 'Feature Extraction',
+                  desc: 'Extract measurable signal characteristics that guide downstream hypothesis generation.',
+                },
+                {
+                  stage: 4, color: 'green',
+                  title: 'ML Classification',
+                  desc: 'Use extracted features to assist modulation recognition and generate candidate hypotheses.',
+                },
+                {
+                  stage: 5, color: 'yellow',
+                  title: 'Synchronization',
+                  desc: 'Recover timing and carrier alignment required for reliable downstream processing.',
+                },
+                {
+                  stage: 6, color: 'purple',
+                  title: 'Validation',
+                  desc: 'Test candidate interpretations against downstream processing and reconstruction evidence.',
+                },
               ].map((item, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={pipelineInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-                  transition={{ duration: 0.5, delay: 0.2 + i * 0.1 }}
+                  initial={{ opacity: 0, y: 40, scale: 0.97 }}
+                  animate={pipelineInView
+                    ? { opacity: 1, y: 0, scale: 1 }
+                    : { opacity: 0, y: 40, scale: 0.97 }}
+                  transition={{
+                    duration: 0.55,
+                    delay: 0.1 + i * 0.09,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
                   className="bg-[#0A0A0A] border border-[#222222] rounded-2xl p-8 relative overflow-hidden group hover:border-teal-900 transition-colors duration-300"
                   whileHover={{ y: -5 }}
                 >
                   <div className={`absolute top-0 right-0 w-32 h-32 bg-${item.color}-500/5 rounded-full blur-[60px]`} />
-                  
+
                   <div className="relative z-10">
                     <div className="text-teal-400 font-mono text-sm mb-3 tracking-wider">
                       STAGE {item.stage}
@@ -459,7 +543,10 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               transition={{ duration: 0.6, delay: 0.8 }}
               className="mt-12 bg-[#0A0A0A] border border-[#222222] rounded-2xl p-10"
             >
-              <h4 className="text-3xl font-bold text-white mb-8">Parameter Extraction</h4>
+              <h4 className="text-3xl font-bold text-white mb-3">Parameter Extraction</h4>
+              <p className="text-gray-400 text-sm leading-relaxed mb-8">
+                Convert raw signal observations into measurable parameters that guide hypothesis generation and validation.
+              </p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 {[
                   'Sampling Frequency',
@@ -507,7 +594,9 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
           className="min-h-screen flex items-center justify-center px-6 py-20"
         >
           <div className="max-w-7xl w-full">
+            {/* Heading — parallax on scroll */}
             <motion.div
+              style={{ y: impactHeadingY }}
               initial={{ opacity: 0, y: 30 }}
               animate={impactInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
               transition={{ duration: 0.8 }}
@@ -518,20 +607,20 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               </h2>
             </motion.div>
 
-            {/* Core USP */}
+            {/* Core USP — introductory card, visually distinct, keeps existing entrance animation */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={impactInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="mb-12 bg-gradient-to-br from-[#0A0A0A] to-[#111111] border border-teal-900/50 rounded-3xl p-12 relative overflow-hidden"
-              style={{
-                boxShadow: '0 0 80px rgba(20, 184, 166, 0.2)'
-              }}
+              initial={{ opacity: 0, scale: 0.96, filter: 'blur(6px)' }}
+              animate={impactInView
+                ? { opacity: 1, scale: 1, filter: 'blur(0px)' }
+                : { opacity: 0, scale: 0.96, filter: 'blur(6px)' }}
+              transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="mb-8 bg-gradient-to-br from-[#0A0A0A] to-[#111111] border border-teal-900/50 rounded-3xl p-12 relative overflow-hidden"
+              style={{ boxShadow: '0 0 80px rgba(20, 184, 166, 0.2)' }}
             >
               <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-[120px]" />
-              
-              <div className="relative z-10 text-center mb-10">
-                <motion.div 
+
+              <div className="relative z-10 text-center">
+                <motion.div
                   className="inline-block bg-teal-400/10 border border-teal-400/30 rounded-full px-6 py-2 mb-6"
                   animate={{ y: [0, -5, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
@@ -542,45 +631,62 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                   Closed-Loop Signal<br />Hypothesis Validation
                 </h3>
                 <p className="text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
-                  SIGMA doesn't just predict modulation schemes—it proves them. Every hypothesis is 
-                  physically tested through the complete signal chain: synchronization, demodulation, 
-                  and forward error correction.
+                  SIGMA does not stop at predicting a modulation scheme. Candidate hypotheses
+                  are carried through the signal-processing chain and tested against downstream
+                  evidence before being considered validated.
                 </p>
               </div>
-
-              {/* Benefits Grid */}
-              <div className="grid md:grid-cols-2 gap-6">
-                {[
-                  {
-                    title: 'Proof Over Confidence',
-                    desc: 'Traditional systems output percentages like "82% QPSK" without verification. SIGMA attempts actual demodulation and FEC decoding. If Viterbi syndrome checks pass, the hypothesis is proven—not guessed.'
-                  },
-                  {
-                    title: 'Explainable Evidence',
-                    desc: 'Every validated signal comes with a complete evidence trail: which synchronization method succeeded, what demodulator configuration worked, and which FEC parameters decoded cleanly.'
-                  },
-                  {
-                    title: 'Automation at Scale',
-                    desc: 'Analysts can process hundreds of unknown signals without manual parameter tuning. The hypothesis engine explores the parameter space systematically, testing combinations that humans might never consider.'
-                  },
-                  {
-                    title: 'Reduced False Positives',
-                    desc: 'By requiring physical demodulation success, SIGMA eliminates the false confidence of pure ML classifiers. A hypothesis either fully decodes or it does not - there is no ambiguity.'
-                  }
-                ].map((benefit, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={impactInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                    transition={{ duration: 0.5, delay: 0.6 + i * 0.1 }}
-                    className="bg-[#0A0A0A] border border-[#222222] rounded-xl p-6 hover:border-teal-900 transition-colors duration-300"
-                  >
-                    <h4 className="text-xl font-bold text-teal-400 mb-3">{benefit.title}</h4>
-                    <p className="text-gray-400 text-sm leading-relaxed">{benefit.desc}</p>
-                  </motion.div>
-                ))}
-              </div>
             </motion.div>
+
+            {/* Four individual benefit cards — 2×2 grid, styled like Pipeline cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+              {[
+                {
+                  title: 'Proof Over Confidence',
+                  desc: 'Replace unexplained prediction confidence with evidence from measurable signal-processing outcomes. A hypothesis is not treated as correct simply because a model considers it likely; it must produce consistent downstream results.',
+                },
+                {
+                  title: 'Explainable Evidence',
+                  desc: 'Trace why a signal hypothesis was accepted or rejected through observable processing results. SIGMA connects the hypothesis to the evidence produced throughout the analysis chain instead of presenting an unexplained final prediction.',
+                },
+                {
+                  title: 'Automation at Scale',
+                  desc: 'Reduce repetitive manual tuning by structuring the signal-analysis process into a consistent pipeline. This makes complex RF analysis more systematic and scalable across multiple recordings.',
+                },
+                {
+                  title: 'Reduced False Positives',
+                  desc: 'Use downstream validation to distinguish plausible hypotheses from interpretations that fail during processing. This helps prevent incorrect signal classifications from being treated as validated results.',
+                },
+              ].map((benefit, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 30, scale: 0.97 }}
+                  animate={impactInView
+                    ? { opacity: 1, y: 0, scale: 1 }
+                    : { opacity: 0, y: 30, scale: 0.97 }}
+                  transition={{
+                    duration: 0.55,
+                    delay: 0.4 + i * 0.1,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="bg-[#0A0A0A] border border-[#222222] rounded-2xl p-8 relative overflow-hidden group hover:border-teal-900 transition-colors duration-300"
+                  whileHover={{ y: -5 }}
+                >
+                  {/* Subtle accent glow — same pattern as Pipeline cards */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-[60px]" />
+
+                  <div className="relative z-10">
+                    <h4 className="text-2xl font-bold text-teal-400 mb-4">{benefit.title}</h4>
+                    <p className="text-gray-400 text-sm leading-relaxed">{benefit.desc}</p>
+                  </div>
+
+                  {/* Bottom hover line — same as Pipeline cards */}
+                  <motion.div
+                    className="absolute bottom-0 left-0 h-[2px] w-0 bg-gradient-to-r from-teal-500 to-blue-500 group-hover:w-full transition-all duration-500"
+                  />
+                </motion.div>
+              ))}
+            </div>
 
             {/* Final CTA */}
             <motion.div
@@ -616,17 +722,61 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="relative z-10 border-t border-[#222222] py-12 mt-20">
-          <div className="max-w-7xl mx-auto px-6 text-center">
-            <motion.p 
-              className="text-gray-500 text-sm font-mono"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-            >
-              SIGMA — Signal Intelligence & Guided Modulation Analysis
-            </motion.p>
+        {/* ── NEW SIGMA FOOTER ── */}
+        <footer className="relative z-10 border-t border-[#222222] mt-20">
+          <div className="max-w-7xl mx-auto px-6 py-12">
+            {/* Top row: brand + nav links */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-10">
+              {/* Brand */}
+              <div className="flex-shrink-0">
+                <div className="text-xl font-bold tracking-tighter bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent mb-1">
+                  SIGMA
+                </div>
+                <p className="text-gray-500 text-xs font-mono tracking-wide">
+                  Signal Intelligence &amp; Guided Modulation Analysis
+                </p>
+              </div>
+
+              {/* Navigation links */}
+              <nav className="flex flex-wrap gap-x-8 gap-y-3">
+                {[
+                  { label: 'About SIGMA',       href: '/info#about'     },
+                  { label: 'Problem Statement',  href: '/info#problem'   },
+                  { label: 'Problem & Solution', href: '/info#solution'  },
+                  { label: 'Use Cases',          href: '/info#use-cases' },
+                  { label: 'Privacy Policy',     href: '/info#privacy'   },
+                ].map(({ label, href }) => (
+                  <a
+                    key={href}
+                    href={href}
+                    className="text-gray-400 text-sm hover:text-purple-400 transition-colors duration-200 whitespace-nowrap"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </nav>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-[#1a1a1a]" />
+
+            {/* Bottom row: copyright */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6">
+              <motion.p
+                className="text-gray-600 text-xs font-mono"
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                transition={{ duration: 0.6 }}
+              >
+                © {new Date().getFullYear()} SIGMA Project. Prototype / research demonstration.
+              </motion.p>
+              <a
+                href="/info"
+                className="text-gray-600 text-xs font-mono hover:text-purple-400 transition-colors duration-200"
+              >
+                Info &amp; Policies ↗
+              </a>
+            </div>
           </div>
         </footer>
       </div>
