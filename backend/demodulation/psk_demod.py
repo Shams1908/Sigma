@@ -6,13 +6,18 @@ synchronisation chain (matched filter + carrier recovery + timing recovery).
 The demodulator maps each complex symbol to the nearest constellation point
 and returns the decoded bit sequence.
 
-Constellation conventions (Gray-coded):
-  BPSK:  +1 → 0,  -1 → 1
-  QPSK:  Uses the standard Gray-coded mapping for the four quadrants.
-         I > 0, Q > 0 → 00
-         I < 0, Q > 0 → 10
-         I < 0, Q < 0 → 11
-         I > 0, Q < 0 → 01
+Constellation conventions match the ML generator canonical mappings exactly:
+
+BPSK:
+  bit 0 → -1 + 0j
+  bit 1 → +1 + 0j
+  Decision: real ≥ 0 → bit 1 (+1),  real < 0 → bit 0 (-1)
+
+QPSK (Gray-coded, 2 bits per symbol as (b0, b1)):
+  00 → (+1 + 1j) / sqrt(2)   [Q1: re>0, im>0]
+  01 → (-1 + 1j) / sqrt(2)   [Q2: re<0, im>0]
+  11 → (-1 - 1j) / sqrt(2)   [Q3: re<0, im<0]
+  10 → (+1 - 1j) / sqrt(2)   [Q4: re>0, im<0]
 """
 from __future__ import annotations
 
@@ -35,8 +40,10 @@ class DemodResult:
 
 # ── BPSK ─────────────────────────────────────────────────────────────────────
 
-# BPSK constellation: index → symbol, symbol → bit
-_BPSK_CONST = np.array([1.0 + 0j, -1.0 + 0j], dtype=np.complex64)
+# Canonical BPSK constellation matching the ML generator:
+#   bit 0 → -1+0j  (index 0)
+#   bit 1 → +1+0j  (index 1)
+_BPSK_CONST = np.array([-1.0 + 0j, 1.0 + 0j], dtype=np.complex64)
 _BPSK_BITS  = np.array([0, 1], dtype=np.uint8)
 
 
@@ -44,7 +51,9 @@ def demod_bpsk(symbols: np.ndarray) -> DemodResult:
     """
     Hard-decision BPSK demodulator.
 
-    Decides on the sign of the real part; imaginary part is treated as noise.
+    Canonical mapping (matches ML generator):
+      real ≥ 0  →  decision = +1,  bit = 1
+      real < 0  →  decision = -1,  bit = 0
 
     Args:
         symbols: 1-D complex array (one sample per symbol, synchronised).
@@ -54,9 +63,10 @@ def demod_bpsk(symbols: np.ndarray) -> DemodResult:
     """
     symbols = np.asarray(symbols, dtype=np.complex64)
 
-    # Decision: threshold on real part
-    bit_array = np.where(symbols.real >= 0.0, np.uint8(0), np.uint8(1))
-    decisions = np.where(symbols.real >= 0.0, _BPSK_CONST[0], _BPSK_CONST[1])
+    # real ≥ 0  →  bit 1  (+1),   real < 0  →  bit 0  (-1)
+    positive = symbols.real >= 0.0
+    bit_array = np.where(positive, np.uint8(1), np.uint8(0))
+    decisions = np.where(positive, _BPSK_CONST[1], _BPSK_CONST[0])
 
     evm = _rms_evm(symbols, decisions)
 
@@ -71,14 +81,19 @@ def demod_bpsk(symbols: np.ndarray) -> DemodResult:
 
 # ── QPSK ─────────────────────────────────────────────────────────────────────
 
-# Gray-coded QPSK constellation (normalised to unit average power)
+# Gray-coded QPSK constellation (normalised to unit average power).
+# Table key: (sign(re), sign(im)) where +1 means ≥ 0.
+# Matches ML generator index: b0*2 + b1 → symbol
+#   idx 0 (b0=0,b1=0):  (+1+1j)/√2   Q1: re>0, im>0  → bits [0,0]
+#   idx 1 (b0=0,b1=1):  (-1+1j)/√2   Q2: re<0, im>0  → bits [0,1]
+#   idx 2 (b0=1,b1=0):  (+1-1j)/√2   Q4: re>0, im<0  → bits [1,0]
+#   idx 3 (b0=1,b1=1):  (-1-1j)/√2   Q3: re<0, im<0  → bits [1,1]
 _QPSK_NORM = 1.0 / np.sqrt(2.0)
-# (re_sign, im_sign) → (2-bit Gray code)
 _QPSK_DECISION_TABLE: dict[tuple[int, int], tuple[np.complex64, list[int]]] = {
-    ( 1,  1): (np.complex64(( _QPSK_NORM + 1j * _QPSK_NORM)), [0, 0]),
-    (-1,  1): (np.complex64((-_QPSK_NORM + 1j * _QPSK_NORM)), [1, 0]),
-    (-1, -1): (np.complex64((-_QPSK_NORM - 1j * _QPSK_NORM)), [1, 1]),
-    ( 1, -1): (np.complex64(( _QPSK_NORM - 1j * _QPSK_NORM)), [0, 1]),
+    ( 1,  1): (np.complex64(( _QPSK_NORM + 1j * _QPSK_NORM)), [0, 0]),   # Q1: bits 00
+    (-1,  1): (np.complex64((-_QPSK_NORM + 1j * _QPSK_NORM)), [0, 1]),   # Q2: bits 01
+    (-1, -1): (np.complex64((-_QPSK_NORM - 1j * _QPSK_NORM)), [1, 1]),   # Q3: bits 11
+    ( 1, -1): (np.complex64(( _QPSK_NORM - 1j * _QPSK_NORM)), [1, 0]),   # Q4: bits 10
 }
 
 
@@ -86,7 +101,11 @@ def demod_qpsk(symbols: np.ndarray) -> DemodResult:
     """
     Hard-decision QPSK demodulator (Gray coded).
 
-    Each symbol maps to 2 bits based on the quadrant of the complex plane.
+    Canonical mapping (matches ML generator):
+      Q1 (re>0, im>0) → bits [0, 0]
+      Q2 (re<0, im>0) → bits [0, 1]
+      Q3 (re<0, im<0) → bits [1, 1]
+      Q4 (re>0, im<0) → bits [1, 0]
 
     Args:
         symbols: 1-D complex array (one sample per symbol, synchronised).

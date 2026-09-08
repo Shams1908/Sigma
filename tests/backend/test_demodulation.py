@@ -99,11 +99,11 @@ class TestBPSK:
     def test_single_symbol(self):
         r = demod_bpsk(np.array([0.9 + 0.1j], dtype=np.complex64))
         assert len(r.bits) == 1
-        assert r.bits[0] == 0  # real > 0 → bit 0
+        assert r.bits[0] == 1  # real > 0 → bit 1 (canonical: +1 → bit 1)
 
     def test_negative_symbol(self):
         r = demod_bpsk(np.array([-0.9 + 0.1j], dtype=np.complex64))
-        assert r.bits[0] == 1  # real < 0 → bit 1
+        assert r.bits[0] == 0  # real < 0 → bit 0 (canonical: -1 → bit 0)
 
 
 # ── QPSK tests ────────────────────────────────────────────────────────────────
@@ -132,24 +132,24 @@ class TestQPSK:
         assert r.evm_rms < 0.5
 
     def test_quadrant_q1(self):
-        """I > 0, Q > 0 → Gray code 00."""
+        """I > 0, Q > 0 → canonical bits 00."""
         r = demod_qpsk(np.array([0.7 + 0.7j], dtype=np.complex64))
         assert list(r.bits) == [0, 0]
 
     def test_quadrant_q2(self):
-        """I < 0, Q > 0 → Gray code 10."""
+        """I < 0, Q > 0 → canonical bits 01."""
         r = demod_qpsk(np.array([-0.7 + 0.7j], dtype=np.complex64))
-        assert list(r.bits) == [1, 0]
+        assert list(r.bits) == [0, 1]
 
     def test_quadrant_q3(self):
-        """I < 0, Q < 0 → Gray code 11."""
+        """I < 0, Q < 0 → canonical bits 11."""
         r = demod_qpsk(np.array([-0.7 - 0.7j], dtype=np.complex64))
         assert list(r.bits) == [1, 1]
 
     def test_quadrant_q4(self):
-        """I > 0, Q < 0 → Gray code 01."""
+        """I > 0, Q < 0 → canonical bits 10."""
         r = demod_qpsk(np.array([0.7 - 0.7j], dtype=np.complex64))
-        assert list(r.bits) == [0, 1]
+        assert list(r.bits) == [1, 0]
 
 
 # ── Dispatcher ────────────────────────────────────────────────────────────────
@@ -198,3 +198,143 @@ class TestEVMAndScore:
         r = demod_bpsk(_noisy_bpsk_symbols(snr_db=5.0))
         score = constellation_score(r)
         assert 0.0 <= score <= 1.0
+
+
+# ── Generator → Demodulator round-trip tests ──────────────────────────────────
+#
+# These tests use the ML generator modulators as the source of truth.
+# They prove that the backend demodulator exactly inverts the canonical
+# bit→symbol mapping defined in the ML generators.
+
+class TestGeneratorRoundTrip:
+    """
+    Round-trip: ML generator produces symbols from bits, backend demodulator
+    recovers the exact original bit sequence.
+    """
+
+    def test_bpsk_roundtrip_exact(self):
+        """
+        BPSK: bits → BPSKModulator symbols → demod_bpsk → same bits.
+        Uses the ML BPSKModulator (canonical: bit0→-1, bit1→+1).
+        """
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+        from ml.generators.modulation.bpsk import BPSKModulator
+        from ml.generators.config import GeneratorConfig
+
+        rng = np.random.default_rng(0)
+        n_symbols = 256
+        original_bits = rng.integers(0, 2, size=n_symbols).astype(np.uint8)
+
+        config = GeneratorConfig(
+            modulation="BPSK",
+            num_symbols=n_symbols,
+            sample_rate=10_000.0,
+            symbol_rate=10_000.0,
+            samples_per_symbol=1,
+            random_seed=0,
+        )
+
+        # Generate noiseless symbols using the canonical ML modulator
+        symbols = BPSKModulator().modulate(original_bits, config)
+
+        # Demodulate with backend demodulator
+        result = demod_bpsk(symbols)
+
+        # Must recover every bit exactly
+        np.testing.assert_array_equal(
+            result.bits,
+            original_bits,
+            err_msg="BPSK round-trip failed: demodulated bits do not match original bits",
+        )
+
+    def test_qpsk_roundtrip_exact(self):
+        """
+        QPSK: bits → QPSKModulator symbols → demod_qpsk → same bits.
+        Uses the ML QPSKModulator (canonical Gray mapping: b0b1 index=b0*2+b1).
+        """
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+        from ml.generators.modulation.qpsk import QPSKModulator
+        from ml.generators.config import GeneratorConfig
+
+        rng = np.random.default_rng(1)
+        n_symbols = 256
+        # Must be even number of bits (2 per symbol)
+        original_bits = rng.integers(0, 2, size=n_symbols * 2).astype(np.uint8)
+
+        config = GeneratorConfig(
+            modulation="QPSK",
+            num_symbols=n_symbols,
+            sample_rate=10_000.0,
+            symbol_rate=10_000.0,
+            samples_per_symbol=1,
+            random_seed=1,
+        )
+
+        # Generate noiseless symbols using the canonical ML modulator
+        symbols = QPSKModulator().modulate(original_bits, config)
+
+        # Demodulate with backend demodulator
+        result = demod_qpsk(symbols)
+
+        # Must recover every bit exactly
+        np.testing.assert_array_equal(
+            result.bits,
+            original_bits,
+            err_msg="QPSK round-trip failed: demodulated bits do not match original bits",
+        )
+
+    def test_bpsk_roundtrip_all_bit_values(self):
+        """All-zeros and all-ones bit sequences round-trip correctly."""
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+        from ml.generators.modulation.bpsk import BPSKModulator
+        from ml.generators.config import GeneratorConfig
+
+        config = GeneratorConfig(
+            modulation="BPSK",
+            num_symbols=8,
+            sample_rate=1000.0,
+            symbol_rate=1000.0,
+            samples_per_symbol=1,
+            random_seed=0,
+        )
+        mod = BPSKModulator()
+
+        for constant_bit in (0, 1):
+            bits = np.full(8, constant_bit, dtype=np.uint8)
+            symbols = mod.modulate(bits, config)
+            result = demod_bpsk(symbols)
+            np.testing.assert_array_equal(result.bits, bits)
+
+    def test_qpsk_roundtrip_all_dibits(self):
+        """All four dibit patterns (00, 01, 10, 11) round-trip correctly."""
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+        from ml.generators.modulation.qpsk import QPSKModulator
+        from ml.generators.config import GeneratorConfig
+
+        config = GeneratorConfig(
+            modulation="QPSK",
+            num_symbols=4,
+            sample_rate=1000.0,
+            symbol_rate=1000.0,
+            samples_per_symbol=1,
+            random_seed=0,
+        )
+        mod = QPSKModulator()
+
+        # One symbol per dibit: 00 01 10 11
+        bits = np.array([0, 0, 0, 1, 1, 0, 1, 1], dtype=np.uint8)
+        symbols = mod.modulate(bits, config)
+        result = demod_qpsk(symbols)
+        np.testing.assert_array_equal(result.bits, bits)
