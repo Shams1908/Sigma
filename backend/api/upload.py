@@ -12,7 +12,7 @@ import logging
 import os
 import shutil
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
@@ -113,7 +113,7 @@ async def upload_signal(file: UploadFile = File(...)):
 
     # --- Step 3: Persist Signal document (best-effort when DB is live) ---
     signal_id = str(uuid.uuid4())
-    ingestion_time = datetime.utcnow()
+    ingestion_time = datetime.now(timezone.utc)
 
     if is_db_connected():
         try:

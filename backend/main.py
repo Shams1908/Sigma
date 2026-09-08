@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from db.init import init_db
-from api import analysis_router, results_router, upload_router
+from api import analysis_router, results_router, upload_router, visualizations_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -64,6 +64,11 @@ if settings.BACKEND_CORS_ORIGINS:
 app.include_router(upload_router, prefix=f"{settings.API_V1_STR}/upload", tags=["Upload"])
 app.include_router(analysis_router, prefix=f"{settings.API_V1_STR}/analysis", tags=["Analysis"])
 app.include_router(results_router, prefix=f"{settings.API_V1_STR}/results", tags=["Results"])
+app.include_router(
+    visualizations_router,
+    prefix=f"{settings.API_V1_STR}/visualizations",
+    tags=["Visualizations"],
+)
 
 
 @app.get("/health", tags=["Health"])

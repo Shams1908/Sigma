@@ -4,7 +4,7 @@ All documents are stored in MongoDB Atlas via Motor (async driver).
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
 from beanie import Document, PydanticObjectId
@@ -55,7 +55,7 @@ class Signal(Document):
     detected_format: str
     sample_rate: Optional[float] = None
     storage_path: str
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+    uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
         name = "signals"
@@ -66,7 +66,7 @@ class Analysis(Document):
 
     signal_id: PydanticObjectId
     status: Literal["pending", "running", "done", "failed"] = "pending"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
     parameters: Optional[ParameterEstimate] = None
     hypotheses: List[Hypothesis] = []

@@ -8,12 +8,19 @@ from pathlib import Path
 from typing import List
 
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 
 # Root of the repo (two levels up from this file: backend/core/ -> backend/ -> repo root)
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(
+        case_sensitive=True,
+        env_file=str(_REPO_ROOT / ".env"),
+        env_file_encoding="utf-8",
+    )
+
     PROJECT_NAME: str = "SIGMA"
     API_V1_STR: str = "/api/v1"
 
@@ -33,11 +40,6 @@ class Settings(BaseSettings):
 
     # Path to the trained CNN model checkpoint (relative to repo root)
     MODEL_PATH: str = str(_REPO_ROOT / "models" / "m5_iq_cnn.pt")
-
-    class Config:
-        case_sensitive = True
-        env_file = str(_REPO_ROOT / ".env")
-        env_file_encoding = "utf-8"
 
 
 settings = Settings()

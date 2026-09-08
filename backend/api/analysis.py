@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -105,7 +105,7 @@ async def _pipeline_and_persist(
         except Exception as exc:  # noqa: BLE001
             logger.warning("Skipping malformed hypothesis entry: %s", exc)
 
-    completed_at = datetime.utcnow()
+    completed_at = datetime.now(timezone.utc)
     status = "done"
     error_msg = None
 
@@ -184,7 +184,7 @@ def _set_failed(analysis_id: str, message: str) -> None:
     entry.update(
         {
             "status": "failed",
-            "completed_at": datetime.utcnow(),
+            "completed_at": datetime.now(timezone.utc),
             "error_message": message,
         }
     )
@@ -200,7 +200,7 @@ def _set_failed(analysis_id: str, message: str) -> None:
                 doc = await Analysis.get(PydanticObjectId(analysis_id))
                 if doc:
                     doc.status = "failed"
-                    doc.completed_at = datetime.utcnow()
+                    doc.completed_at = datetime.now(timezone.utc)
                     doc.error_message = message
                     await doc.save()
             except Exception:  # noqa: BLE001
@@ -254,7 +254,7 @@ async def create_analysis(signal_id: str, background_tasks: BackgroundTasks):
         )
 
     analysis_id = str(uuid.uuid4())
-    created_at = datetime.utcnow()
+    created_at = datetime.now(timezone.utc)
 
     if is_db_connected():
         try:
@@ -326,7 +326,7 @@ async def get_analysis_status(analysis_id: str):
         analysis_id=analysis_id,
         signal_id=entry.get("signal_id", ""),
         status=entry.get("status", "pending"),
-        created_at=entry.get("created_at", datetime.utcnow()),
+        created_at=entry.get("created_at", datetime.now(timezone.utc)),
         completed_at=entry.get("completed_at"),
         error_message=entry.get("error_message"),
     )
