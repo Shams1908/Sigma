@@ -1,5 +1,19 @@
-from pydantic_settings import BaseSettings
 from typing import List
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class HypothesisScoringSettings(BaseModel):
+    """
+    Configuration for hypothesis candidate scoring and confidence ranking.
+    All weights and softmax temperature are fully configurable.
+    """
+    weight_ml: float = Field(default=0.35, description="Weight w1 for ML classification confidence")
+    weight_constellation: float = Field(default=0.25, description="Weight w2 for constellation agreement")
+    weight_timing: float = Field(default=0.15, description="Weight w3 for timing/synchronization quality")
+    weight_fec: float = Field(default=0.15, description="Weight w4 for FEC validation")
+    weight_bitstream: float = Field(default=0.10, description="Weight w5 for bitstream correlation")
+    temperature: float = Field(default=0.25, gt=0.0, description="Softmax temperature for confidence normalization")
+    confidence_tolerance: float = Field(default=1e-5, description="Numerical tolerance for confidence sum validation")
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "SIGMA"
@@ -12,8 +26,14 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    # Hypothesis Scoring Configuration
+    HYPOTHESIS_SCORING: HypothesisScoringSettings = HypothesisScoringSettings()
+
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=".env",
+        extra="ignore",
+    )
 
 settings = Settings()
+

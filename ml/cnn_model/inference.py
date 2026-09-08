@@ -19,8 +19,9 @@ def get_cnn_model(model_path: str = "models/m5_iq_cnn.pt") -> Tuple[RawIQCNN, fl
     Returns:
         Tuple[RawIQCNN, float]: The PyTorch model (in eval mode) and the RMS scaling factor.
     """
-    if "model" in _MODEL_CACHE:
-        return _MODEL_CACHE["model"], _MODEL_CACHE["rms_factor"]
+    if model_path in _MODEL_CACHE:
+        entry = _MODEL_CACHE[model_path]
+        return entry["model"], entry["rms_factor"]
         
     if not os.path.exists(model_path):
         raise FileNotFoundError(
@@ -30,16 +31,40 @@ def get_cnn_model(model_path: str = "models/m5_iq_cnn.pt") -> Tuple[RawIQCNN, fl
         
     print(f"Loading cached PyTorch CNN model from: {model_path}")
     checkpoint = torch.load(model_path, map_location=torch.device("cpu"))
+    state_dict = checkpoint["model_state_dict"]
     
-    model = RawIQCNN(num_classes=11)
-    model.load_state_dict(checkpoint["model_state_dict"])
+    # Infer or extract in_channels and num_classes from checkpoint
+    in_channels = int(checkpoint.get(
+        "in_channels",
+        state_dict["block1.0.weight"].shape[1]
+    ))
+    num_classes = int(checkpoint.get(
+        "num_classes",
+        state_dict["fc.3.weight"].shape[0]
+    ))
+    representation = str(checkpoint.get("representation", "RAW_IQ"))
+    
+    model = RawIQCNN(num_classes=num_classes, in_channels=in_channels)
+    model.load_state_dict(state_dict)
     model.eval()
     
     rms_factor = float(checkpoint["rms_factor"])
     
-    _MODEL_CACHE["model"] = model
-    _MODEL_CACHE["rms_factor"] = rms_factor
+    # Attach metadata attributes to model instance for downstream inspection
+    model.in_channels = in_channels
+    model.num_classes = num_classes
+    model.representation = representation
+    model.rms_factor = rms_factor
+    model.label_mapping = checkpoint.get("label_mapping")
+    
+    _MODEL_CACHE[model_path] = {
+        "model": model,
+        "rms_factor": rms_factor,
+        "in_channels": in_channels,
+        "representation": representation,
+    }
     return model, rms_factor
+
 
 def predict_iq(iq: np.ndarray, model_path: str = "models/m5_iq_cnn.pt") -> Dict[str, Any]:
     """
@@ -85,15 +110,28 @@ def predict_iq(iq: np.ndarray, model_path: str = "models/m5_iq_cnn.pt") -> Dict[
     # 3. Apply normalization scaling
     X_normalized = X / rms_factor
     
+    # 3b. Apply representation transform if model expects more channels than 2
+    in_channels = getattr(model, "in_channels", 2)
+    rep_type = getattr(model, "representation", "RAW_IQ")
+    if in_channels > 2 and X_normalized.shape[1] == 2:
+        from ml.representations.transforms import compute_representation
+        X_normalized = compute_representation(X_normalized, rep_type)
+    
     # 4. Model Inference on CPU
     x_tensor = torch.tensor(X_normalized, dtype=torch.float32)
     with torch.no_grad():
         outputs = model(x_tensor)
-        probs = torch.softmax(outputs, dim=1).numpy() # Shape [N, 11]
+        probs = torch.softmax(outputs, dim=1).numpy() # Shape [N, num_classes]
         
     class_indices = np.argmax(probs, axis=1) # Shape [N]
     confidences = np.max(probs, axis=1) # Shape [N]
-    class_names = np.array([INDEX_TO_MODULATION[idx] for idx in class_indices], dtype=object)
+    
+    label_map = getattr(model, "label_mapping", None)
+    if label_map is not None and len(label_map) == probs.shape[1]:
+        class_names = np.array([label_map[idx] for idx in class_indices], dtype=object)
+    else:
+        class_names = np.array([INDEX_TO_MODULATION.get(idx, f"CLASS_{idx}") for idx in class_indices], dtype=object)
+
 
     # 5. Formulate response based on input shape
     if is_batch:

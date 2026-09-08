@@ -107,26 +107,41 @@ def analyze_file(
     # This prevents inconsistent inference across files
     segments_norm = segments / rms_factor
     
+    # 3b. Apply representation transform if model expects more channels than 2
+    in_channels = getattr(model, "in_channels", 2)
+    rep_type = getattr(model, "representation", "RAW_IQ")
+    if in_channels > 2 and segments_norm.shape[1] == 2:
+        from ml.representations.transforms import compute_representation
+        segments_norm = compute_representation(segments_norm, rep_type)
+        
     # 4. Perform PyTorch CNN Batch Inference on CPU
     x_tensor = torch.tensor(segments_norm, dtype=torch.float32)
     
     try:
         with torch.no_grad():
             outputs = model(x_tensor)
-            probs = torch.softmax(outputs, dim=1).numpy() # shape [M, 11]
+            probs = torch.softmax(outputs, dim=1).numpy() # shape [M, num_classes]
     except Exception as e:
         raise ValueError(f"CNN Model inference failed: {str(e)}")
         
     # 5. Aggregate predictions across windows
     file_idx, file_name, file_conf, mean_probs, pred_dist, mean_ent = aggregate_window_probabilities(probs)
     
-    # Extract window details
-    window_preds = [INDEX_TO_MODULATION[int(idx)] for idx in np.argmax(probs, axis=1)]
+    label_map = getattr(model, "label_mapping", None)
+    if label_map is not None and len(label_map) == probs.shape[1]:
+        file_name = label_map[file_idx]
+        window_preds = [label_map[int(idx)] for idx in np.argmax(probs, axis=1)]
+        # Re-key prediction distribution with custom labels
+        pred_dist = {label_map[int(idx)]: count for idx, count in pred_dist.items()} if isinstance(next(iter(pred_dist.keys()), None), int) else pred_dist
+        top_indices = np.argsort(mean_probs)[::-1][:top_k]
+        top_preds = [(label_map[int(idx)], float(mean_probs[int(idx)])) for idx in top_indices]
+    else:
+        window_preds = [INDEX_TO_MODULATION.get(int(idx), f"CLASS_{idx}") for idx in np.argmax(probs, axis=1)]
+        top_preds = get_top_k_predictions(mean_probs, top_k=top_k)
+        
     window_confidences = [float(c) for c in np.max(probs, axis=1)]
     window_probabilities = [list(p.astype(float)) for p in probs]
-    
-    # Top-k predictions
-    top_preds = get_top_k_predictions(mean_probs, top_k=top_k)
+
     
     # Construct structured result
     return SignalAnalysisResult(

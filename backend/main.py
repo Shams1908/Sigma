@@ -1,8 +1,12 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from core.config import settings
-from api import upload_router, analysis_router, results_router
+try:
+    from core.config import settings
+    from api import upload_router, analysis_router, results_router
+except ImportError:
+    from backend.core.config import settings
+    from backend.api import upload_router, analysis_router, results_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

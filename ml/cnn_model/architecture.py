@@ -7,12 +7,14 @@ class RawIQCNN(nn.Module):
     Input shape: [batch, 2, 128]
     Output shape: [batch, 11]
     """
-    def __init__(self, num_classes: int = 11):
+    def __init__(self, num_classes: int = 11, in_channels: int = 2):
         super(RawIQCNN, self).__init__()
+        self.in_channels = in_channels
+        self.num_classes = num_classes
         
         # Block 1
         self.block1 = nn.Sequential(
-            nn.Conv1d(in_channels=2, out_channels=64, kernel_size=7, padding=3),
+            nn.Conv1d(in_channels=in_channels, out_channels=64, kernel_size=7, padding=3),
             nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2) # 128 -> 64

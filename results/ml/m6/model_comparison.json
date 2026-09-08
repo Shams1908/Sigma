@@ -1,0 +1,46 @@
+{
+    "timestamp": "2026-09-08T02:52:12Z",
+    "configuration": {
+        "dataset_version": "RadioML 2016.10A",
+        "samples_per_split": 1496,
+        "random_seed": 42,
+        "training_epochs": 5,
+        "batch_size": 64,
+        "learning_rate": 0.001
+    },
+    "models": {
+        "baseline_m5_raw_iq": {
+            "representation": "RAW_IQ",
+            "in_channels": 2,
+            "parameters": 175819,
+            "training_time_s": 2.9194411000062246,
+            "latency_per_sample_ms": 0.13201965240031396,
+            "val_clean_accuracy": 0.3342245989304813,
+            "val_clean_macro_f1": 0.26138266272945865,
+            "val_impaired_accuracy": 0.1925133689839572,
+            "val_impaired_macro_f1": 0.14569687980790305
+        },
+        "m6_candidate_iq_amplitude": {
+            "representation": "IQ_AMPLITUDE",
+            "in_channels": 3,
+            "parameters": 176267,
+            "training_time_s": 2.8829352999746334,
+            "latency_per_sample_ms": 0.13013736630931874,
+            "val_clean_accuracy": 0.30414438502673796,
+            "val_clean_macro_f1": 0.25349380858242276,
+            "val_impaired_accuracy": 0.14505347593582887,
+            "val_impaired_macro_f1": 0.09021496430551652
+        },
+        "m6_augmented_iq_amplitude": {
+            "representation": "IQ_AMPLITUDE",
+            "in_channels": 3,
+            "parameters": 176267,
+            "training_time_s": 6.224406199995428,
+            "latency_per_sample_ms": 0.13470387701110112,
+            "val_clean_accuracy": 0.37566844919786097,
+            "val_clean_macro_f1": 0.35384998204392953,
+            "val_impaired_accuracy": 0.29010695187165775,
+            "val_impaired_macro_f1": 0.2633046998921665
+        }
+    }
+}

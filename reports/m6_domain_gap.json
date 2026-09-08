@@ -1,0 +1,205 @@
+{
+    "timestamp": "2026-09-08T02:50:29Z",
+    "provenance": {
+        "synthetic_dataset": "synthetic_evaluation_dataset.npz",
+        "real_benchmark": "RadioML 2016.10A",
+        "external_validation_source": "M6-DEV-SUBSET",
+        "random_seed": 42,
+        "samples_analyzed_per_domain": 2000
+    },
+    "root_causes_identified": [
+        "Global Amplitude Scale Mismatch: Synthetic RMS (0.3428) is 40.2x of RadioML real RMS (0.0085). Without checkpoint RMS scaling, 1D CNN activations collapse or saturate.",
+        "Phase Noise / Frequency Drift Discrepancy: Synthetic phase diff variance (1.2559) differs from real (1.5455), causing symbol timing misalignment."
+    ],
+    "metrics_summary": {
+        "complex_rms": {
+            "synthetic": 0.342812873486224,
+            "real_radioml": 0.008537278122841985,
+            "real_external": 0.9707884441865751,
+            "delta_vs_radioml": 0.334275595363382,
+            "relative_delta_vs_radioml": 39.154816253929,
+            "delta_vs_external": -0.627975570700351,
+            "relative_delta_vs_external": -0.6468716987867124
+        },
+        "signal_power": {
+            "synthetic": 0.25799415916094703,
+            "real_radioml": 7.30817207915121e-05,
+            "real_external": 0.9830967432711586,
+            "delta_vs_radioml": 0.2579210774401555,
+            "relative_delta_vs_radioml": 3529.166328877437,
+            "delta_vs_external": -0.7251025841102116,
+            "relative_delta_vs_external": -0.7375699170357675
+        },
+        "power_std": {
+            "synthetic": 1.0192090394993254,
+            "real_radioml": 8.16473539720781e-06,
+            "real_external": 0.38032949141465855,
+            "delta_vs_radioml": 1.0192008747639283,
+            "relative_delta_vs_radioml": 124814.34006696244,
+            "delta_vs_external": 0.6388795480846668,
+            "relative_delta_vs_external": 1.6798054340422308
+        },
+        "amplitude_mean": {
+            "synthetic": 0.2751671056330602,
+            "real_radioml": 0.007812499994867732,
+            "real_external": 0.9467276969564972,
+            "delta_vs_radioml": 0.26735460563819247,
+            "relative_delta_vs_radioml": 34.2213851638324,
+            "delta_vs_external": -0.671560591323437,
+            "relative_delta_vs_external": -0.7093492593202821
+        },
+        "amplitude_std": {
+            "synthetic": 0.42693936705048796,
+            "real_radioml": 0.0034708159878771724,
+            "real_external": 0.2946241861857329,
+            "delta_vs_radioml": 0.4234685510626108,
+            "relative_delta_vs_radioml": 122.00832038730265,
+            "delta_vs_external": 0.13231518086475508,
+            "relative_delta_vs_external": 0.4490981617247289
+        },
+        "amplitude_skewness": {
+            "synthetic": 0.5082494228852936,
+            "real_radioml": 0.2674837643112918,
+            "real_external": -0.08113569171857013,
+            "delta_vs_radioml": 0.24076565857400184,
+            "relative_delta_vs_radioml": 0.9001131649758406,
+            "delta_vs_external": 0.5893851146038638,
+            "relative_delta_vs_external": 7.264190331722734
+        },
+        "amplitude_kurtosis": {
+            "synthetic": -1.047858326684021,
+            "real_radioml": -0.038779518817346745,
+            "real_external": 1.8588288957668093,
+            "delta_vs_radioml": -1.0090788078666741,
+            "relative_delta_vs_radioml": -26.020920646245234,
+            "delta_vs_external": -2.90668722245083,
+            "relative_delta_vs_external": -1.5637196234180744
+        },
+        "papr_db": {
+            "synthetic": 6.417416128509412,
+            "real_radioml": 5.470034723234268,
+            "real_external": 2.280449492252035,
+            "delta_vs_radioml": 0.9473814052751441,
+            "relative_delta_vs_radioml": 0.1731947698755724,
+            "delta_vs_external": 4.136966636257377,
+            "relative_delta_vs_external": 1.814101407857911
+        },
+        "phase_variance": {
+            "synthetic": 3.059990117001801,
+            "real_radioml": 2.7875313071340133,
+            "real_external": 3.0457678560442947,
+            "delta_vs_radioml": 0.2724588098677878,
+            "relative_delta_vs_radioml": 0.09774197300412493,
+            "delta_vs_external": 0.01422226095750645,
+            "relative_delta_vs_external": 0.004669515742840678
+        },
+        "phase_diff_variance": {
+            "synthetic": 1.2558986555405358,
+            "real_radioml": 1.545456390864609,
+            "real_external": 0.1979016622621334,
+            "delta_vs_radioml": -0.28955773532407325,
+            "relative_delta_vs_radioml": -0.18736066371612004,
+            "delta_vs_external": 1.0579969932784024,
+            "relative_delta_vs_external": 5.346074286788675
+        },
+        "inst_freq_mean": {
+            "synthetic": 0.0024791788823213846,
+            "real_radioml": 0.024208205930415658,
+            "real_external": 0.03768384065107883,
+            "delta_vs_radioml": -0.021729027048094273,
+            "relative_delta_vs_radioml": -0.8975892807985504,
+            "delta_vs_external": -0.035204661768757445,
+            "relative_delta_vs_external": -0.9342110630525269
+        },
+        "inst_freq_kurtosis": {
+            "synthetic": 2.2767646951755216,
+            "real_radioml": 2.276844957477648,
+            "real_external": 7.8049216931730205,
+            "delta_vs_radioml": -8.026230212632157e-05,
+            "relative_delta_vs_radioml": -3.525154483069714e-05,
+            "delta_vs_external": -5.528156997997499,
+            "relative_delta_vs_external": -0.7082911545576039
+        },
+        "iq_amplitude_imbalance_db": {
+            "synthetic": 3.2014802973117447,
+            "real_radioml": -0.8136573377018549,
+            "real_external": -0.0034783399703714186,
+            "delta_vs_radioml": 4.015137635013599,
+            "relative_delta_vs_radioml": 4.934678818751305,
+            "delta_vs_external": 3.204958637282116,
+            "relative_delta_vs_external": 921.4043892137145
+        },
+        "iq_orthogonality_corr": {
+            "synthetic": -0.0029030840647271666,
+            "real_radioml": -0.026190699757175955,
+            "real_external": -0.0002680384962763895,
+            "delta_vs_radioml": 0.02328761569244879,
+            "relative_delta_vs_radioml": 0.8891558843101305,
+            "delta_vs_external": -0.002635045568450777,
+            "relative_delta_vs_external": -9.830810776235916
+        },
+        "dc_offset_i": {
+            "synthetic": 0.017864783722727425,
+            "real_radioml": 0.0001622273884611881,
+            "real_external": 0.006886311523305995,
+            "delta_vs_radioml": 0.017702556334266237,
+            "relative_delta_vs_radioml": 109.1211994533339,
+            "delta_vs_external": 0.01097847219942143,
+            "relative_delta_vs_external": 1.5942454197752358
+        },
+        "dc_offset_q": {
+            "synthetic": 0.018488504270852888,
+            "real_radioml": -0.0006068301626857922,
+            "real_external": -0.0034170410683789587,
+            "delta_vs_radioml": 0.01909533443353868,
+            "relative_delta_vs_radioml": 31.467293718114387,
+            "delta_vs_external": 0.021905545339231846,
+            "relative_delta_vs_external": 6.410674759302514
+        },
+        "total_dc_offset": {
+            "synthetic": 0.02570943966003873,
+            "real_radioml": 0.0006281405670008921,
+            "real_external": 0.007687486979436476,
+            "delta_vs_radioml": 0.025081299093037836,
+            "relative_delta_vs_radioml": 39.929373266587554,
+            "delta_vs_external": 0.018021952680602252,
+            "relative_delta_vs_external": 2.3443227135846962
+        },
+        "spectral_flatness": {
+            "synthetic": 0.059737096248289316,
+            "real_radioml": 0.29453964756027257,
+            "real_external": 0.05679883913959482,
+            "delta_vs_radioml": -0.23480255131198324,
+            "relative_delta_vs_radioml": -0.7971848695403561,
+            "delta_vs_external": 0.0029382571086944975,
+            "relative_delta_vs_external": 0.051730935023904134
+        },
+        "occupied_bw_ratio": {
+            "synthetic": 0.36880078125,
+            "real_radioml": 0.7085234375,
+            "real_external": 0.491796875,
+            "delta_vs_radioml": -0.33972265625000003,
+            "relative_delta_vs_radioml": -0.4794797712962322,
+            "delta_vs_external": -0.12299609375000004,
+            "relative_delta_vs_external": -0.25009531323253065
+        },
+        "autocorr_lag1": {
+            "synthetic": 0.892764944645789,
+            "real_radioml": 0.4269410168948123,
+            "real_external": 0.9196025258401023,
+            "delta_vs_radioml": 0.46582392775097675,
+            "relative_delta_vs_radioml": 1.091073258896254,
+            "delta_vs_external": -0.02683758119431323,
+            "relative_delta_vs_external": -0.02918389240026487
+        },
+        "autocorr_lag2": {
+            "synthetic": 0.8151729551447677,
+            "real_radioml": 0.3847935167422819,
+            "real_external": 0.8471340409362437,
+            "delta_vs_radioml": 0.4303794384024858,
+            "relative_delta_vs_radioml": 1.1184685254774365,
+            "delta_vs_external": -0.03196108579147594,
+            "relative_delta_vs_external": -0.0377284871216182
+        }
+    }
+}
