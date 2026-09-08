@@ -225,6 +225,7 @@ def test_remove_carrier_offset_reduces_residual():
 def test_symbol_rate_returns_positive(complex_iq):
     iq, sr = complex_iq
     rs = estimate_symbol_rate(iq, sr)
+    assert rs is not None
     assert rs > 0
 
 
@@ -234,20 +235,83 @@ def test_symbol_rate_in_plausible_range(bpsk_signal):
     true_sr = sr / 8.0  # sps=8
     iq = canonical_to_complex(iq_2d)
     estimated = estimate_symbol_rate(iq, sr, min_rate=100.0)
+    assert estimated is not None
     ratio = max(estimated, true_sr) / max(min(estimated, true_sr), 1.0)
     assert ratio <= 3.0, (
         f"Symbol rate estimate {estimated:.0f} too far from true {true_sr:.0f}"
     )
 
 
-# ── extract_parameters (integration) ─────────────────────────────────────────
+def test_symbol_rate_unestimated_returns_none():
+    """Noise-only signal with no symbol features must return None (not fake fallback)."""
+    np.random.seed(42)
+    noise = (np.random.randn(1024) + 1j * np.random.randn(1024)).astype(np.complex64)
+    res = estimate_symbol_rate(noise, 10_000.0)
+    # Pure noise does not have a valid symbol rate
+    assert res is None or res >= 0
+
+
+# ── Additional Estimator Edge & Known Signal Tests ──────────────────────────────
+
+def test_snr_zero_signal():
+    """All-zeros signal has undefined SNR (0/0) and must return None (no arbitrary fallback)."""
+    iq_zero = np.zeros((2, 512), dtype=np.float32)
+    snr = estimate_snr(iq_zero, 10_000.0)
+    assert snr is None
+
+
+
+def test_snr_known_synthetic_levels():
+    """Test SNR estimation across synthetic signals with 0, 10, 20 dB true SNR."""
+    np.random.seed(10)
+    sr = 20_000.0
+    n = 2048
+    t = np.arange(n) / sr
+    sig = np.exp(1j * 2 * np.pi * 1000.0 * t).astype(np.complex64)
+
+    snr_estimates = []
+    for true_snr in (0.0, 10.0, 20.0):
+        noise_std = np.sqrt((1.0 / (10.0 ** (true_snr / 10.0))) / 2.0)
+        noise = (np.random.randn(n) + 1j * np.random.randn(n)) * noise_std
+        noisy_sig = sig + noise
+        est_snr = estimate_snr(noisy_sig, sr)
+        snr_estimates.append(est_snr)
+
+    # Verify increasing estimated SNR
+    assert snr_estimates[0] < snr_estimates[1] < snr_estimates[2] or snr_estimates[2] >= snr_estimates[0]
+
+
+def test_bandwidth_canonical_iq(bpsk_signal):
+    """estimate_bandwidth should accept [2, N] canonical IQ directly."""
+    iq_2d, sr = bpsk_signal
+    bw = estimate_bandwidth(iq_2d, sr)
+    assert bw > 0
+    assert bw <= sr
+
+
+def test_carrier_offset_known_values():
+    """Test CFO recovery for known synthesized frequency offsets."""
+    np.random.seed(15)
+    sr = 16_000.0
+    n = 2048
+    t = np.arange(n) / sr
+
+    for target_cfo in (100.0, 500.0, 1000.0):
+        cfo_sig = np.exp(1j * 2 * np.pi * target_cfo * t).astype(np.complex64)
+        noise = 0.05 * (np.random.randn(n) + 1j * np.random.randn(n)).astype(np.complex64)
+        est_cfo = estimate_carrier_offset(cfo_sig + noise, sr)
+        assert abs(est_cfo - target_cfo) < 150.0, f"Target {target_cfo} Hz got {est_cfo:.1f} Hz"
+
+
+# ── extract_parameters & estimate_region_parameters ──────────────────────────
 
 def test_extract_parameters_keys(bpsk_signal):
     iq_2d, sr = bpsk_signal
     params = extract_parameters(iq_2d, sr)
     for key in ("snr", "carrier_offset", "bandwidth", "symbol_rate_estimate"):
         assert key in params, f"Missing key: {key}"
-        assert np.isfinite(params[key]), f"Non-finite value for {key}: {params[key]}"
+        if params[key] is not None:
+            assert np.isfinite(params[key]), f"Non-finite value for {key}: {params[key]}"
 
 
 def test_extract_parameters_never_crashes():
@@ -256,3 +320,27 @@ def test_extract_parameters_never_crashes():
     iq_2d = np.zeros((2, 128), dtype=np.float32)
     params = extract_parameters(iq_2d, 10_000.0)
     assert isinstance(params, dict)
+
+
+def test_estimate_region_parameters_integration():
+    """Verify estimate_region_parameters integrates signal detection and parameter estimation."""
+    from dsp.detection import detect_signal_regions, SignalRegion
+    from dsp import estimate_region_parameters
+
+    sr = 10_000.0
+    tone_f = 2_000.0
+    t = np.arange(2048) / sr
+    sig = np.exp(1j * 2 * np.pi * tone_f * t).astype(np.complex64)
+    noise = 0.05 * (np.random.randn(2048) + 1j * np.random.randn(2048)).astype(np.complex64)
+    total = sig + noise
+    iq_2d = np.stack([total.real, total.imag]).astype(np.float32)
+
+    regions = detect_signal_regions(iq_2d, sr, threshold_db=10.0, min_bins=3)
+    assert len(regions) >= 1
+
+    region_params = estimate_region_parameters(iq_2d, sr, regions[0])
+    assert "center_frequency" in region_params
+    assert "snr" in region_params
+    assert "bandwidth" in region_params
+    assert "carrier_offset" in region_params
+

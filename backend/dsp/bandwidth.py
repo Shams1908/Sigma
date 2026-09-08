@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from dsp.fft import canonical_to_complex
 from dsp.psd import estimate_psd, noise_floor_db
 
 
@@ -25,17 +26,32 @@ def estimate_bandwidth(
     `power_fraction` (0–1) of the total signal power.
 
     Args:
-        iq:              1-D complex IQ array.
+        iq:              1-D complex IQ array or [2, N] canonical IQ array.
         sample_rate:     Sample rate in Hz.
         power_fraction:  Fraction of total power to capture (default 0.99).
         nperseg:         Welch segment size.
 
     Returns:
-        Occupied bandwidth in Hz.
+        Occupied bandwidth in Hz (non-negative).
     """
-    iq = np.asarray(iq, dtype=np.complex64)
+    if sample_rate <= 0:
+        raise ValueError(f"Sample rate must be positive, got {sample_rate}")
+
+    if isinstance(iq, np.ndarray) and iq.ndim == 2:
+        iq = canonical_to_complex(iq)
+    else:
+        iq = np.asarray(iq, dtype=np.complex64)
+
+    if iq.ndim != 1 or len(iq) == 0:
+        return 0.0
+
+    if not np.all(np.isfinite(iq)):
+        return 0.0
 
     freqs, psd_db = estimate_psd(iq, sample_rate, nperseg=nperseg)
+
+    if len(freqs) == 0:
+        return 0.0
 
     # Convert dB back to linear for power integration
     psd_lin = 10.0 ** (psd_db / 10.0)
@@ -53,7 +69,6 @@ def estimate_bandwidth(
 
     # Cumulative power from low to high frequency (freqs already fftshifted)
     cumpower = np.cumsum(signal_psd)
-    threshold = total_power * power_fraction
     low_margin = (1.0 - power_fraction) / 2.0
     high_margin = 1.0 - low_margin
 
@@ -64,6 +79,7 @@ def estimate_bandwidth(
     high_idx = max(0, min(high_idx, len(freqs) - 1))
 
     bw = abs(float(freqs[high_idx]) - float(freqs[low_idx]))
-    # Enforce a minimum of one frequency bin
+    # Enforce a minimum of one frequency bin and cap at sample_rate
     df = abs(freqs[1] - freqs[0]) if len(freqs) > 1 else 1.0
-    return max(bw, float(df))
+    return float(np.clip(max(bw, float(df)), 0.0, sample_rate))
+
