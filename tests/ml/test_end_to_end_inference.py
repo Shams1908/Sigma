@@ -74,7 +74,7 @@ def test_model_integrity_after_inference(tmp_path):
     np.save(npy_path, data)
     
     # Load model state dict prior to execution
-    model, _ = get_cnn_model("models/m5_iq_cnn.pt")
+    model, _, _ = get_cnn_model("models/m5_iq_cnn.pt")
     state_dict_before = {k: v.clone() for k, v in model.state_dict().items()}
     
     # Run analysis
@@ -103,7 +103,7 @@ def test_checkpoint_normalization_used(tmp_path, monkeypatch):
     mock_model = MockCNN()
     
     # Mock get_cnn_model to return custom model and RMS scaling 2.5
-    monkeypatch.setattr("ml.inference.pipeline.get_cnn_model", lambda path: (mock_model, 2.5))
+    monkeypatch.setattr("ml.inference.pipeline.get_cnn_model", lambda path: (mock_model, 2.5, None))
     
     # Create NPY file containing value 5.0
     npy_path = os.path.join(tmp_path, "signal.npy")
