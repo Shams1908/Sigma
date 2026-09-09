@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState, memo } from 'react';
+import { useEffect, useRef, useState, memo, useMemo } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Html } from '@react-three/drei';
+import * as THREE from 'three';
 import FocusMode from './FocusMode';
 
 interface WaveformViewerProps {
@@ -7,6 +10,271 @@ interface WaveformViewerProps {
   timeData: number[];
   sampleRate: number;
 }
+
+interface IQDataPoint {
+  i: number;
+  q: number;
+}
+
+interface TimeDomain3DProps {
+  iqData: IQDataPoint[];
+  onHoverChange: (hover: { 
+    x: number; 
+    y: number; 
+    timeVal: number; 
+    iVal: number; 
+    qVal: number; 
+    index: number; 
+    coord3D: [number, number, number] 
+  } | null) => void;
+}
+
+const TimeDomain3D = memo(function TimeDomain3D({ iqData, onHoverChange }: TimeDomain3DProps) {
+  const hoverIndexRef = useRef<number | null>(null);
+  const [hover3DLocal, setHover3DLocal] = useState<{ coord3D: [number, number, number] } | null>(null);
+
+  const geometries = useMemo(() => {
+    const safeData = iqData.length > 5000 ? iqData.slice(-5000) : iqData;
+    const timeScale = 20 / safeData.length;
+    
+    const iArray = new Float32Array(safeData.length * 3);
+    const qArray = new Float32Array(safeData.length * 3);
+    const compositeArray = new Float32Array(safeData.length * 3);
+    
+    for (let i = 0; i < safeData.length; i++) {
+      const idx = i * 3;
+      const xPos = (i - safeData.length / 2) * timeScale;
+      
+      iArray[idx] = xPos;
+      iArray[idx + 1] = safeData[i].i;
+      iArray[idx + 2] = 0;
+      
+      qArray[idx] = xPos;
+      qArray[idx + 1] = 0;
+      qArray[idx + 2] = safeData[i].q;
+      
+      compositeArray[idx] = xPos;
+      compositeArray[idx + 1] = safeData[i].i;
+      compositeArray[idx + 2] = safeData[i].q;
+    }
+    
+    return { iArray, qArray, compositeArray, timeScale, dataLength: safeData.length, safeData };
+  }, [iqData]);
+
+  const axisGeometries = useMemo(() => {
+    const halfTime = (geometries.dataLength / 2) * geometries.timeScale;
+    
+    const xAxisPositions = new Float32Array([-halfTime, 0, 0, halfTime, 0, 0]);
+    const yAxisPositions = new Float32Array([0, -1.5, 0, 0, 1.5, 0]);
+    const zAxisPositions = new Float32Array([0, 0, -1.5, 0, 0, 1.5]);
+    
+    return { 
+      xAxis: xAxisPositions, 
+      yAxis: yAxisPositions, 
+      zAxis: zAxisPositions,
+      startPos: [-halfTime, 0, 0] as [number, number, number],
+      endPos: [halfTime, 0, 0] as [number, number, number]
+    };
+  }, [geometries.dataLength, geometries.timeScale]);
+
+  const handlePointerMoveLocal = (e: any) => {
+    e.stopPropagation();
+    if (e.index === undefined) return;
+    if (hoverIndexRef.current === e.index) return;
+    
+    hoverIndexRef.current = e.index;
+    const realPoint = geometries.safeData[e.index];
+    const xPos = (e.index - geometries.safeData.length / 2) * geometries.timeScale;
+    const coord3D: [number, number, number] = [xPos, realPoint.i, realPoint.q];
+    
+    setHover3DLocal({ coord3D });
+    
+    onHoverChange({
+      x: e.clientX,
+      y: e.clientY,
+      timeVal: e.index,
+      iVal: realPoint.i,
+      qVal: realPoint.q,
+      index: e.index,
+      coord3D
+    });
+  };
+
+  const handlePointerOutLocal = () => {
+    hoverIndexRef.current = null;
+    setHover3DLocal(null);
+    onHoverChange(null);
+  };
+
+  const laserGeometry = useMemo(() => {
+    if (!hover3DLocal) return null;
+    const positions = new Float32Array([
+      hover3DLocal.coord3D[0], hover3DLocal.coord3D[1], 0,
+      hover3DLocal.coord3D[0], hover3DLocal.coord3D[1], hover3DLocal.coord3D[2],
+      hover3DLocal.coord3D[0], 0, hover3DLocal.coord3D[2]
+    ]);
+    return positions;
+  }, [hover3DLocal]);
+
+  return (
+    <>
+      <ambientLight intensity={0.5} />
+      <pointLight position={[10, 10, 10]} intensity={1} />
+      
+      <line raycast={() => null}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={axisGeometries.xAxis.length / 3}
+            array={axisGeometries.xAxis}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#FFFFFF" opacity={0.6} transparent blending={THREE.AdditiveBlending} />
+      </line>
+      
+      <line raycast={() => null}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={axisGeometries.yAxis.length / 3}
+            array={axisGeometries.yAxis}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#00E5FF" opacity={0.4} transparent />
+      </line>
+      
+      <line raycast={() => null}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={axisGeometries.zAxis.length / 3}
+            array={axisGeometries.zAxis}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#B200FF" opacity={0.4} transparent />
+      </line>
+      
+      <mesh position={axisGeometries.startPos} raycast={() => null}>
+        <sphereGeometry args={[0.15, 16, 16]} />
+        <meshStandardMaterial color="#00FF00" emissive="#00FF00" emissiveIntensity={0.5} />
+      </mesh>
+      <Html position={axisGeometries.startPos} center>
+        <div className="font-mono text-[10px] text-green-400 bg-[#050505]/80 px-1 border border-green-500/50">START</div>
+      </Html>
+      
+      <mesh position={axisGeometries.endPos} raycast={() => null}>
+        <sphereGeometry args={[0.15, 16, 16]} />
+        <meshStandardMaterial color="#FF0044" emissive="#FF0044" emissiveIntensity={0.5} />
+      </mesh>
+      <Html position={axisGeometries.endPos} center>
+        <div className="font-mono text-[10px] text-red-400 bg-[#050505]/80 px-1 border border-red-500/50">END</div>
+      </Html>
+      
+      <Html position={[0, 1.1, 0]} center>
+        <div className="font-mono text-[9px] text-[#00E5FF]">+1.0 (I)</div>
+      </Html>
+      <Html position={[0, -1.1, 0]} center>
+        <div className="font-mono text-[9px] text-[#00E5FF]">-1.0 (I)</div>
+      </Html>
+      <Html position={[0, 0, 1.1]} center>
+        <div className="font-mono text-[9px] text-[#B200FF]">+1.0 (Q)</div>
+      </Html>
+      
+      <line raycast={() => null}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={geometries.iArray.length / 3}
+            array={geometries.iArray}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#00E5FF" opacity={0.8} transparent />
+      </line>
+      
+      <points raycast={() => null}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={geometries.iArray.length / 3}
+            array={geometries.iArray}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial color="#00E5FF" size={0.05} />
+      </points>
+      
+      <line raycast={() => null}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={geometries.qArray.length / 3}
+            array={geometries.qArray}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#B200FF" opacity={0.8} transparent />
+      </line>
+      
+      <points raycast={() => null}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={geometries.qArray.length / 3}
+            array={geometries.qArray}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial color="#B200FF" size={0.05} />
+      </points>
+      
+      <line raycast={() => null}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={geometries.compositeArray.length / 3}
+            array={geometries.compositeArray}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#FFFFFF" opacity={0.2} transparent blending={THREE.AdditiveBlending} />
+      </line>
+      
+      <points onPointerMove={handlePointerMoveLocal} onPointerOut={handlePointerOutLocal}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={geometries.compositeArray.length / 3}
+            array={geometries.compositeArray}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial color="#FFFFFF" size={0.08} transparent opacity={0.0} />
+      </points>
+      
+      {hover3DLocal && laserGeometry && (
+        <lineSegments>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              count={laserGeometry.length / 3}
+              array={laserGeometry}
+              itemSize={3}
+            />
+          </bufferGeometry>
+          <lineBasicMaterial color="#FFFFFF" transparent opacity={0.8} />
+        </lineSegments>
+      )}
+      
+      <OrbitControls makeDefault />
+      
+      <gridHelper args={[40, 40, '#444444', '#222222']} raycast={() => null} />
+    </>
+  );
+});
 
 const WaveformViewer = memo(function WaveformViewer({ iData, qData, timeData, sampleRate }: WaveformViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -19,6 +287,16 @@ const WaveformViewer = memo(function WaveformViewer({ iData, qData, timeData, sa
   const [dragStart, setDragStart] = useState(0);
   const [selectedRange, setSelectedRange] = useState<{ start: number; end: number } | null>(null);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+  const [hover3D, setHover3D] = useState<{ 
+    x: number; 
+    y: number; 
+    timeVal: number; 
+    iVal: number; 
+    qVal: number; 
+    index: number; 
+    coord3D: [number, number, number] 
+  } | null>(null);
 
   useEffect(() => {
     // Reset zoom, pan, and selection whenever data changes
@@ -101,6 +379,7 @@ const WaveformViewer = memo(function WaveformViewer({ iData, qData, timeData, sa
 
     const pixelWidth = Math.floor(width);
     const samplesPerPixel = viewIData.length / pixelWidth;
+    const showVertices = focused && zoomLevel > 4.0;
 
     if (samplesPerPixel > 2) {
       ctx.strokeStyle = '#06b6d4';
@@ -174,6 +453,22 @@ const WaveformViewer = memo(function WaveformViewer({ iData, qData, timeData, sa
         else ctx.lineTo(x, y);
       });
       ctx.stroke();
+
+      if (showVertices) {
+        ctx.fillStyle = '#FFFFFF';
+        viewIData.forEach((val, idx) => {
+          const x = (idx / viewIData.length) * width;
+          const y = midY - val * scaleY;
+          ctx.fillRect(x - 1, y - 1, 2, 2);
+        });
+
+        ctx.fillStyle = '#00FFFF';
+        viewQData.forEach((val, idx) => {
+          const x = (idx / viewQData.length) * width;
+          const y = midY + val * scaleY;
+          ctx.fillRect(x - 1, y - 1, 2, 2);
+        });
+      }
     }
 
     ctx.strokeStyle = '#222222';
@@ -318,32 +613,80 @@ const WaveformViewer = memo(function WaveformViewer({ iData, qData, timeData, sa
 
   const cursorValues = getCursorValues();
 
+  const iqDataMemo = useMemo<IQDataPoint[]>(() => {
+    return iData.map((i, idx) => ({ i, q: qData[idx] }));
+  }, [iData, qData]);
+
   const renderWaveform = () => (
     <div className="w-full h-full relative">
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full"
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-        style={{ cursor: isFocused ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
-      />
-      {isFocused && cursor && cursorValues && (
-        <div
-          className="absolute bg-[#0A0A0A] border border-sigma-purple text-xs font-mono text-white px-3 py-2 rounded pointer-events-none z-10"
-          style={{
-            left: cursor.x + 10,
-            top: cursor.y + 10
-          }}
-        >
-          <div className="text-cyan-400">I: {cursorValues.iVal.toFixed(4)}</div>
-          <div className="text-purple-400">Q: {cursorValues.qVal.toFixed(4)}</div>
-          <div className="text-gray-400">{(cursorValues.time * 1000).toFixed(3)} ms</div>
-        </div>
+      {isFocused && viewMode === '3d' ? (
+        <>
+          <Canvas
+            camera={{ position: [15, 10, 15], fov: 50 }}
+            style={{ background: '#0A0A0A' }}
+          >
+            <TimeDomain3D iqData={iqDataMemo} onHoverChange={setHover3D} />
+          </Canvas>
+          {hover3D && (
+            <div 
+              style={{ 
+                position: 'fixed', 
+                top: hover3D.y + 15, 
+                left: hover3D.x + 15, 
+                pointerEvents: 'none', 
+                zIndex: 9999 
+              }}
+              className="bg-[#050505] border border-[#B200FF] shadow-[0_0_10px_rgba(178,0,255,0.2)] p-2 font-mono text-[10px] text-gray-300 flex flex-col space-y-1 min-w-[130px]"
+            >
+              <div className="text-[#B200FF] font-bold border-b border-[#222] pb-1 mb-1">SAMPLE INDEX: {hover3D.index}</div>
+              <div>I (In-Phase): {hover3D.iVal.toFixed(4)}</div>
+              <div>Q (Quadrature): {hover3D.qVal.toFixed(4)}</div>
+              <div>Mag: {Math.sqrt(hover3D.iVal ** 2 + hover3D.qVal ** 2).toFixed(4)}</div>
+            </div>
+          )}
+          <div className="absolute bottom-4 left-4 z-10 bg-[#0A0A0A] border border-[#222] p-3 flex flex-col space-y-2 font-mono text-[10px] text-gray-400 shadow-xl pointer-events-none">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-[#00E5FF]"></div>
+              <span>IN-PHASE (I) : XY PLANE</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-[#B200FF]"></div>
+              <span>QUADRATURE (Q) : XZ PLANE</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-white"></div>
+              <span>COMPOSITE TRAJECTORY</span>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full"
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            style={{ cursor: isFocused ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+          />
+          {isFocused && cursor && cursorValues && (
+            <div
+              className="absolute bg-[#0A0A0A] border border-sigma-purple text-xs font-mono text-white px-3 py-2 rounded pointer-events-none z-10"
+              style={{
+                left: cursor.x + 10,
+                top: cursor.y + 10
+              }}
+            >
+              <div className="text-cyan-400">I: {cursorValues.iVal.toFixed(4)}</div>
+              <div className="text-purple-400">Q: {cursorValues.qVal.toFixed(4)}</div>
+              <div className="text-gray-400">{(cursorValues.time * 1000).toFixed(3)} ms</div>
+            </div>
+          )}
+        </>
       )}
-      {isFocused && (
+      {isFocused && viewMode === '2d' && (
         <div className="absolute bottom-4 left-4 bg-[#0A0A0A] border border-[#222222] px-3 py-2 rounded z-10">
           <div className="text-xs font-mono text-slate-400">Zoom: {zoomLevel.toFixed(1)}x</div>
           {selectedRange && (
@@ -353,9 +696,35 @@ const WaveformViewer = memo(function WaveformViewer({ iData, qData, timeData, sa
           )}
         </div>
       )}
-      {isFocused && (
+      {isFocused && viewMode === '2d' && (
         <div className="absolute top-4 right-4 bg-[#0A0A0A] border border-[#222222] px-3 py-2 rounded z-10">
           <div className="text-xs font-mono text-slate-400">Hold Shift + Drag to select time range</div>
+        </div>
+      )}
+      {isFocused && (
+        <div className="absolute top-4 left-4 bg-[#0A0A0A] border border-[#222222] rounded-lg overflow-hidden z-10">
+          <div className="flex">
+            <button
+              onClick={() => setViewMode('2d')}
+              className={`px-4 py-2 text-xs font-mono transition-colors ${
+                viewMode === '2d' 
+                  ? 'bg-cyan-500 text-black' 
+                  : 'bg-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              2D
+            </button>
+            <button
+              onClick={() => setViewMode('3d')}
+              className={`px-4 py-2 text-xs font-mono transition-colors ${
+                viewMode === '3d' 
+                  ? 'bg-cyan-500 text-black' 
+                  : 'bg-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              3D RIBBON
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -414,21 +783,33 @@ const WaveformViewer = memo(function WaveformViewer({ iData, qData, timeData, sa
           setZoomLevel(1); 
           setPanOffset(0); 
           setSelectedRange(null);
+          setViewMode('2d');
         }} 
         title="TIME DOMAIN WAVEFORM"
       >
         {renderWaveform()}
-        <div className="mt-4 flex gap-6 text-xs font-mono">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-1 bg-cyan-500"></div>
-            <span className="text-gray-400">I (In-Phase)</span>
+        {viewMode === '2d' && (
+          <div className="mt-4 flex gap-6 text-xs font-mono">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-1 bg-cyan-500"></div>
+              <span className="text-gray-400">I (In-Phase)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-1 bg-purple-400"></div>
+              <span className="text-gray-400">Q (Quadrature)</span>
+            </div>
+            <div className="text-gray-500">Sample Rate: {(sampleRate / 1000).toFixed(1)} ksps</div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-1 bg-purple-400"></div>
-            <span className="text-gray-400">Q (Quadrature)</span>
+        )}
+        {viewMode === '3d' && (
+          <div className="mt-4 flex gap-6 text-xs font-mono">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-1 bg-cyan-500"></div>
+              <span className="text-gray-400">I/Q Ribbon in 3D Space</span>
+            </div>
+            <div className="text-gray-500">Use mouse to rotate • Scroll to zoom</div>
           </div>
-          <div className="text-gray-500">Sample Rate: {(sampleRate / 1000).toFixed(1)} ksps</div>
-        </div>
+        )}
       </FocusMode>
     </>
   );
