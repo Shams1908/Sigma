@@ -1,0 +1,7 @@
+SCOPE RESTRICTION (read this before every task):
+You may ONLY read and modify files inside the `frontend/` directory.
+Never read, open, edit, create, or delete any file under `backend/`, `ml/`,
+`datasets/`, `models/`, `notebooks/`, `tests/`, `docs/`, or any root-level
+file (README.md, .gitignore, etc.).
+If a task seems to require changes outside `frontend/`, stop and explain
+why instead of making the change.
