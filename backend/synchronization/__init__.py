@@ -7,6 +7,15 @@ Provides the full sync chain:
   3. Symbol timing recovery          — timing_recovery.py   (Gardner TED)
 
 Public convenience function: synchronize() runs all three stages in order.
+
+Frame/preamble acquisition:
+  BasicFrameSynchronizer             — frame_sync.py
+  FrameSyncResult
+  build_rc_template
+  find_frame_start
+
+These are independent of the timing/carrier recovery chain; they answer
+"where does the frame begin?" and do not duplicate Costas/Gardner work.
 """
 from __future__ import annotations
 
@@ -15,6 +24,12 @@ import numpy as np
 from synchronization.matched_filter import apply_matched_filter, downsample
 from synchronization.carrier_recovery import costas_loop, estimate_residual_phase
 from synchronization.timing_recovery import gardner_timing_recovery, coarse_timing_offset
+from synchronization.frame_sync import (
+    FrameSyncResult,
+    BasicFrameSynchronizer,
+    build_rc_template,
+    find_frame_start,
+)
 
 
 def synchronize(
