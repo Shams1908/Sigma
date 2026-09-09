@@ -21,12 +21,11 @@ const WaveformViewer = memo(function WaveformViewer({ iData, qData, timeData, sa
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!isFocused) {
-      setZoomLevel(1);
-      setPanOffset(0);
-      setSelectedRange(null);
-    }
-  }, [iData.length, isFocused]);
+    // Reset zoom, pan, and selection whenever data changes
+    setZoomLevel(1);
+    setPanOffset(0);
+    setSelectedRange(null);
+  }, [iData]);
 
   const drawWaveform = (canvas: HTMLCanvasElement, focused: boolean) => {
     const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
