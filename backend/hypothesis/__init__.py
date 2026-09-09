@@ -25,6 +25,22 @@ from backend.hypothesis.generator import (
     create_candidate,
     generate_hypotheses_from_ml,
 )
+from backend.hypothesis.decoder_contracts import (
+    DecoderStageStatus,
+    SynchronizationResult,
+    DemodulationResult,
+    InterleaverResult,
+    FECResult,
+    ValidationResult,
+    DecoderConfig,
+    DecoderRequest,
+    DecoderContext,
+    DecoderResult,
+    DecoderEngine,
+    ScaffoldDecoderEngine,
+    decoder_result_to_evidence_trace,
+    update_hypothesis_from_decoder_result,
+)
 
 __all__ = [
     "EvidenceStatus",
@@ -42,4 +58,19 @@ __all__ = [
     "rank_hypotheses",
     "create_candidate",
     "generate_hypotheses_from_ml",
+    "DecoderStageStatus",
+    "SynchronizationResult",
+    "DemodulationResult",
+    "InterleaverResult",
+    "FECResult",
+    "ValidationResult",
+    "DecoderConfig",
+    "DecoderRequest",
+    "DecoderContext",
+    "DecoderResult",
+    "DecoderEngine",
+    "ScaffoldDecoderEngine",
+    "decoder_result_to_evidence_trace",
+    "update_hypothesis_from_decoder_result",
 ]
+
