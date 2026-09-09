@@ -123,18 +123,32 @@ class HypothesisCandidate:
     details: str = ""
     status: str = "pending"
 
-    def identity_key(self) -> Tuple[str, float, str, str]:
+    def identity_key(self) -> Tuple[Any, ...]:
         """
         Canonical hashable identity key for deduplicating genuinely identical candidate configurations.
-        Distinguishes parameter configurations (modulation, symbol rate, FEC, interleaver).
-        Different symbol rates (e.g. 9600 vs 4800) produce distinct keys.
+        Distinguishes parameter configurations (modulation, symbol rate, FEC, interleaver, sync_assumptions).
+        Different symbol rates (e.g. 9600 vs 4800) or distinct synchronization assumptions produce distinct keys.
         """
+        def _freeze(val: Any) -> Any:
+            if isinstance(val, dict):
+                return tuple(sorted((k, _freeze(v)) for k, v in val.items()))
+            elif isinstance(val, (list, tuple)):
+                return tuple(_freeze(v) for v in val)
+            return str(val)
+
+        sync_key = (
+            tuple(sorted((k, _freeze(v)) for k, v in self.sync_assumptions.items()))
+            if self.sync_assumptions
+            else ()
+        )
         return (
             self.modulation.strip().upper(),
             round(float(self.symbolRate), 2),
             (self.fec_config or "").strip().lower(),
             (self.interleaver_config or "").strip().lower(),
+            sync_key,
         )
+
 
     def to_dict(self) -> Dict[str, Any]:
         """

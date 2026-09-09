@@ -24,7 +24,16 @@ from backend.hypothesis.ranking import (
 from backend.hypothesis.generator import (
     create_candidate,
     generate_hypotheses_from_ml,
+    SyncSearchConfig,
+    DEFAULT_SYNC_CONFIG,
+    HypothesisSearchConfig,
+    HypothesisSearchSummary,
+    expand_symbol_rate_candidates,
+    generate_deterministic_candidate_id,
+    generate_hypothesis_search,
+    generate_hypothesis_search_with_summary,
 )
+
 from backend.hypothesis.decoder_contracts import (
     DecoderStageStatus,
     SynchronizationResult,
@@ -58,6 +67,14 @@ __all__ = [
     "rank_hypotheses",
     "create_candidate",
     "generate_hypotheses_from_ml",
+    "SyncSearchConfig",
+    "DEFAULT_SYNC_CONFIG",
+    "HypothesisSearchConfig",
+    "HypothesisSearchSummary",
+    "expand_symbol_rate_candidates",
+    "generate_deterministic_candidate_id",
+    "generate_hypothesis_search",
+    "generate_hypothesis_search_with_summary",
     "DecoderStageStatus",
     "SynchronizationResult",
     "DemodulationResult",

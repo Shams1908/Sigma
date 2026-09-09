@@ -17,6 +17,17 @@ class HypothesisScoringSettings(BaseModel):
     temperature: float = Field(default=0.25, gt=0.0, description="Softmax temperature for confidence normalization")
     confidence_tolerance: float = Field(default=1e-5, description="Numerical tolerance for confidence sum validation")
 
+class HypothesisSearchSettings(BaseModel):
+    """
+    Configuration for candidate hypothesis search space generation.
+    Controls ML pruning, symbol-rate candidate expansion, and total candidate bounds.
+    """
+    default_top_k_modulations: int = Field(default=5, ge=1, description="Default top-K modulations to retain from ML")
+    min_ml_probability: float = Field(default=0.01, ge=0.0, le=1.0, description="Minimum ML probability threshold to consider")
+    max_symbol_rate_candidates: int = Field(default=3, ge=1, description="Maximum number of symbol-rate candidates per modulation")
+    fallback_uncertainty_fraction: float = Field(default=0.05, gt=0.0, description="Fraction of Baud rate to use as step when uncertainty is unavailable")
+    max_candidates: int = Field(default=24, ge=1, description="Maximum total candidate hypotheses generated across all dimensions")
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "SIGMA"
     API_V1_STR: str = "/api/v1"
@@ -31,6 +42,9 @@ class Settings(BaseSettings):
     # Hypothesis Scoring Configuration
     HYPOTHESIS_SCORING: HypothesisScoringSettings = HypothesisScoringSettings()
 
+    # Hypothesis Generation & Search Configuration
+    HYPOTHESIS_SEARCH: HypothesisSearchSettings = HypothesisSearchSettings()
+
     model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=".env",
@@ -38,4 +52,5 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
+
 
