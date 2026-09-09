@@ -256,6 +256,122 @@ def generate_external_dev_subset(
     return split
 
 
+def generate_pipeline_verification_subset(
+    output_path: Optional[str] = "datasets/processed/pipeline_verification_subset.npz",
+    num_per_condition: int = 5,
+    random_seed: int = 999,
+) -> ExternalDatasetSplit:
+    """
+    Generates a deterministic, strictly isolated pipeline verification subset
+    with seed=999 (completely independent from dev split seed=42) to verify the
+    evaluation pipeline when the real-world benchmark subset_test.h5 is unavailable.
+    """
+    rng = np.random.default_rng(random_seed)
+    frame_len = 1024
+    samples_list = []
+    y_mod_list = []
+    y_chan_list = []
+    y_snr_list = []
+
+    for mod_idx, mod_name in enumerate(EXTERNAL_MODULATION_CLASSES):
+        for chan_idx in [0, 1]:
+            for snr in EXTERNAL_SNR_VALUES:
+                for _ in range(num_per_condition):
+                    t = np.linspace(0, 1, frame_len, endpoint=False)
+                    carrier = 10.0
+                    if mod_name == "BPSK":
+                        symbols = rng.choice([-1.0, 1.0], size=128)
+                        bb = np.repeat(symbols, 8)
+                        I = bb * np.cos(2 * np.pi * carrier * t)
+                        Q = bb * np.sin(2 * np.pi * carrier * t)
+                    elif mod_name == "QPSK":
+                        sym_i = rng.choice([-1.0, 1.0], size=128) / np.sqrt(2)
+                        sym_q = rng.choice([-1.0, 1.0], size=128) / np.sqrt(2)
+                        I = np.repeat(sym_i, 8)
+                        Q = np.repeat(sym_q, 8)
+                    elif mod_name == "QAM":
+                        levels = np.array([-3.0, -1.0, 1.0, 3.0]) / np.sqrt(10)
+                        sym_i = rng.choice(levels, size=128)
+                        sym_q = rng.choice(levels, size=128)
+                        I = np.repeat(sym_i, 8)
+                        Q = np.repeat(sym_q, 8)
+                    elif mod_name == "GMSK":
+                        bits = rng.choice([-1.0, 1.0], size=128)
+                        phase = np.cumsum(np.repeat(bits, 8)) * (np.pi / 16.0)
+                        I = np.cos(phase)
+                        Q = np.sin(phase)
+                    elif mod_name == "OFDM":
+                        I = np.zeros(frame_len)
+                        Q = np.zeros(frame_len)
+                        num_carriers = 16
+                        for k in range(1, num_carriers + 1):
+                            phase_k = rng.uniform(0, 2 * np.pi)
+                            I += (1.0 / np.sqrt(num_carriers)) * np.cos(2 * np.pi * k * 2 * t + phase_k)
+                            Q += (1.0 / np.sqrt(num_carriers)) * np.sin(2 * np.pi * k * 2 * t + phase_k)
+                    elif mod_name == "NBFM":
+                        msg = np.sin(2 * np.pi * 2 * t)
+                        phase = 2 * np.pi * carrier * t + 0.5 * np.cumsum(msg) / frame_len
+                        I = np.cos(phase)
+                        Q = np.sin(phase)
+                    elif mod_name == "WBFM":
+                        msg = np.sin(2 * np.pi * 4 * t)
+                        phase = 2 * np.pi * carrier * t + 5.0 * np.cumsum(msg) / frame_len
+                        I = np.cos(phase)
+                        Q = np.sin(phase)
+                    else:
+                        I = rng.normal(0, 1, size=frame_len)
+                        Q = rng.normal(0, 1, size=frame_len)
+
+                    if chan_idx == 1:
+                        taps = np.array([1.0, 0.4 * np.exp(1j * rng.uniform(0, 2 * np.pi)), 0.2 * np.exp(1j * rng.uniform(0, 2 * np.pi))])
+                        taps = taps / np.sqrt(np.sum(np.abs(taps)**2))
+                        z = np.convolve(I + 1j * Q, taps, mode="same")
+                        I = np.real(z)
+                        Q = np.imag(z)
+
+                    sig_power = np.mean(I**2 + Q**2)
+                    snr_linear = 10.0 ** (snr / 10.0)
+                    noise_power = sig_power / snr_linear
+                    noise_sigma = np.sqrt(noise_power / 2.0)
+                    I += rng.normal(0, noise_sigma, size=frame_len)
+                    Q += rng.normal(0, noise_sigma, size=frame_len)
+
+                    sample = np.stack([I, Q], axis=1).astype(np.float32)
+                    samples_list.append(sample)
+                    y_mod_list.append(mod_idx)
+                    y_chan_list.append(chan_idx)
+                    y_snr_list.append(snr)
+
+    X_all = np.array(samples_list, dtype=np.float32)
+    y_mod_all = np.array(y_mod_list, dtype=np.int64)
+    y_chan_all = np.array(y_chan_list, dtype=np.int64)
+    y_snr_all = np.array(y_snr_list, dtype=np.int64)
+
+    split = ExternalDatasetSplit(
+        X=X_all,
+        y_mod=y_mod_all,
+        y_chan=y_chan_all,
+        y_snr=y_snr_all,
+        provenance="PIPELINE-VERIFICATION-TEST",
+        is_evaluation_set=True,
+    )
+
+    if output_path is not None:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        np.savez_compressed(
+            output_path,
+            X=X_all,
+            y_mod=y_mod_all,
+            y_chan=y_chan_all,
+            y_snr=y_snr_all,
+            provenance="PIPELINE-VERIFICATION-TEST",
+            random_seed=random_seed,
+        )
+
+    return split
+
+
+
 def load_external_dataset(
     path: Optional[str] = None,
     allow_dev_subset_fallback: bool = True,
@@ -277,6 +393,8 @@ def load_external_dataset(
         candidate_paths.append(path)
     else:
         candidate_paths.extend([
+            "ml/dataset/external/realworld/subset_test.h5",
+            "datasets/external/realworld/subset_test.h5",
             "datasets/raw/subset_test.h5",
             "datasets/subset_test.h5",
             "datasets/processed/external_dev_subset.npz",

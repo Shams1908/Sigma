@@ -3,6 +3,7 @@ Hypothesis evidence evaluator and raw-score calculator.
 Calculates raw evidence scores from actually available evidence with weight renormalization.
 Preserves explicit provenance status without arbitrary numeric defaults.
 """
+import math
 from typing import Dict, Any, Optional, List
 try:
     from backend.core.config import settings, HypothesisScoringSettings
@@ -51,8 +52,12 @@ def calculate_raw_score(
         config = settings.HYPOTHESIS_SCORING
 
     evidence = candidate.evidence
+    w_sym = getattr(config, "weight_symbol_rate", 0.20)
+    w_snr = getattr(config, "weight_snr", 0.10)
     dimension_map = [
         (evidence.ml, config.weight_ml, "ml"),
+        (evidence.symbol_rate, w_sym, "symbol_rate"),
+        (evidence.snr, w_snr, "snr"),
         (evidence.constellation, config.weight_constellation, "constellation"),
         (evidence.timing, config.weight_timing, "timing"),
         (evidence.fec, config.weight_fec, "fec"),
@@ -190,3 +195,84 @@ def create_bitstream_evidence(
     if status == EvidenceStatus.AVAILABLE and score is not None:
         return EvidenceComponent(status=status, score=float(score), details=details)
     return EvidenceComponent(status=status, details=details)
+
+
+def create_symbol_rate_evidence(
+    candidate_baud: float,
+    estimated_baud: float,
+    uncertainty_baud: float = 0.0,
+    details: Optional[Dict[str, Any]] = None,
+) -> EvidenceComponent:
+    """
+    Evaluates physical symbol-rate parameter agreement between candidate hypothesis and M8 estimate.
+    
+    Computes Gaussian likelihood agreement:
+      A = exp(-0.5 * (delta / sigma_eff)^2)
+      
+    Returns EvidenceComponent with status=AVAILABLE and score in [0.0, 1.0].
+    """
+    cand_b = float(candidate_baud)
+    est_b = float(estimated_baud)
+    if cand_b <= 0 or est_b <= 0:
+        return EvidenceComponent(
+            status=EvidenceStatus.FAILED,
+            score=0.0,
+            details={"error": "Non-positive symbol rate provided"},
+        )
+
+    unc_b = float(uncertainty_baud) if uncertainty_baud > 0 else (0.05 * est_b)
+    sigma_eff = max(unc_b, 0.03 * est_b)
+    delta_baud = abs(cand_b - est_b)
+    rel_error = delta_baud / est_b
+    z = delta_baud / sigma_eff
+
+    agreement = float(math.exp(-0.5 * (z ** 2)))
+    agreement = max(0.0, min(1.0, agreement))
+
+    info = {
+        "candidate_baud": cand_b,
+        "estimated_baud": est_b,
+        "uncertainty_baud": unc_b,
+        "absolute_error_baud": delta_baud,
+        "relative_error": rel_error,
+        "agreement_score": agreement,
+    }
+    if details:
+        info.update(details)
+
+    return EvidenceComponent(
+        status=EvidenceStatus.AVAILABLE,
+        score=agreement,
+        details=info,
+    )
+
+
+def create_snr_evidence(
+    estimated_snr_db: Optional[float] = None,
+    uncertainty_db: Optional[float] = None,
+    status: EvidenceStatus = EvidenceStatus.NOT_EVALUATED,
+    details: Optional[Dict[str, Any]] = None,
+) -> EvidenceComponent:
+    """
+    Constructs an EvidenceComponent for SNR evidence.
+    
+    In accordance with project SNR policy:
+      - Does NOT fabricate or hand-tune arbitrary modulation-specific thresholds.
+      - Retains neutral NOT_EVALUATED status by default so SNR does not distort ranking.
+      - Stores estimated SNR telemetry in details for downstream inspection and decoders.
+    """
+    info: Dict[str, Any] = {}
+    if estimated_snr_db is not None:
+        info["estimated_snr_db"] = float(estimated_snr_db)
+    if uncertainty_db is not None:
+        info["uncertainty_db"] = float(uncertainty_db)
+    if details:
+        info.update(details)
+
+    if status == EvidenceStatus.AVAILABLE and "score" in info:
+        return EvidenceComponent(status=status, score=float(info["score"]), details=info)
+
+    return EvidenceComponent(
+        status=status,
+        details=info if info else None,
+    )

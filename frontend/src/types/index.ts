@@ -18,6 +18,24 @@ export interface EstimatedParameters {
   symbolRate: number;
 }
 
+export interface EvidenceComponent {
+  status: 'available' | 'failed' | 'not_evaluated' | 'not_supported';
+  score?: number;
+  details?: Record<string, any>;
+}
+
+export interface EvidenceTrace {
+  ml?: EvidenceComponent;
+  mlModulation?: EvidenceComponent;
+  symbolRate?: EvidenceComponent;
+  symbol_rate?: EvidenceComponent;
+  snr?: EvidenceComponent;
+  constellation?: EvidenceComponent;
+  timing?: EvidenceComponent;
+  fec?: EvidenceComponent;
+  bitstream?: EvidenceComponent;
+}
+
 export interface HypothesisCandidate {
   id: string;
   modulation: string;
@@ -36,5 +54,5 @@ export interface HypothesisCandidate {
   fec_config?: string | null;
   interleaver_config?: string | null;
   sync_assumptions?: Record<string, any> | null;
-  evidence?: Record<string, any>;
+  evidence?: EvidenceTrace;
 }

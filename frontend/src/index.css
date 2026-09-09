@@ -549,6 +549,225 @@ body {
   font-style: italic;
 }
 
+/* Hypothesis Ranking Component & Evidence Trace */
+.hypothesis-ranking-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.hypothesis-list-header {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 2fr 0.8fr;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.hypothesis-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hypothesis-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.hypothesis-card:hover {
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(0, 255, 204, 0.2);
+}
+
+.hypothesis-card.expanded {
+  border-color: rgba(0, 255, 204, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.hypothesis-card-summary {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 2fr 0.8fr;
+  align-items: center;
+  padding: 0.75rem;
+  cursor: pointer;
+}
+
+.mod-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rank-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  background: rgba(0, 255, 204, 0.1);
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 255, 204, 0.2);
+}
+
+.mod-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+  letter-spacing: 0.03em;
+}
+
+.fec-badge {
+  font-size: 0.68rem;
+  color: var(--accent-purple);
+  background: rgba(138, 43, 226, 0.15);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+}
+
+.baud-info {
+  font-family: monospace;
+  color: #cbd5e1;
+}
+
+.confidence-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-right: 0.75rem;
+}
+
+.confidence-text-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.conf-percent {
+  font-weight: 700;
+  color: #fff;
+}
+
+.raw-score-tag {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.confidence-progress-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.confidence-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.details-toggle {
+  text-align: right;
+}
+
+.btn-details-toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-details-toggle:hover {
+  background: rgba(0, 255, 204, 0.1);
+  color: var(--accent-cyan);
+  border-color: rgba(0, 255, 204, 0.3);
+}
+
+.hypothesis-evidence-drawer {
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 0.75rem 1rem;
+}
+
+.evidence-trace-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+  font-family: monospace;
+}
+
+.evidence-dimensions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.5rem 1.25rem;
+}
+
+.evidence-dimension-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 65px;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.evidence-dimension-label {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.evidence-bar-track {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.evidence-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.evidence-bar-fill.failed {
+  background: rgba(255, 68, 68, 0.7);
+}
+
+.evidence-status-pill {
+  font-size: 0.65rem;
+  font-family: monospace;
+  text-align: right;
+  font-weight: 600;
+}
+
+.evidence-status-pill.status-available {
+  color: var(--accent-cyan);
+}
+
+.evidence-status-pill.status-not-eval {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.evidence-status-pill.status-failed {
+  color: var(--accent-red);
+}
+
+.evidence-status-pill.status-not-supported {
+  color: var(--accent-amber);
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .dashboard-grid {

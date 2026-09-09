@@ -1,0 +1,1069 @@
+{
+  "status": "M7 COMPLETE",
+  "evaluation_data_type": "independent_real_world_evaluation",
+  "dataset_integrity": {
+    "is_valid": true,
+    "num_samples": 80000,
+    "frame_length": 1024,
+    "iq_channels": 2,
+    "dtype": "float32",
+    "provenance": "REAL-WORLD-EXTERNAL-BENCHMARK",
+    "unique_classes": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "unique_channels": [
+      0,
+      1
+    ],
+    "unique_snrs": [
+      20,
+      22,
+      24,
+      26,
+      28,
+      30
+    ],
+    "has_nans": false,
+    "has_infs": false,
+    "checks_passed": [
+      "length_consistency",
+      "frame_dimensions_[N,1024,2]",
+      "no_nans_or_infs",
+      "valid_modulation_classes",
+      "valid_channel_conditions",
+      "valid_snr_levels",
+      "evaluation_isolation_flag",
+      "split_isolation_uncontaminated"
+    ],
+    "errors": []
+  },
+  "models": {
+    "m5": {
+      "checkpoint": "models/m5_iq_cnn.pt",
+      "in_channels": 2,
+      "representation": "RAW_IQ",
+      "rms_factor": 0.00604842696338892,
+      "frame_level_metrics": {
+        "accuracy": 0.15453096781047487,
+        "macro_precision": 0.27978929896850335,
+        "macro_recall": 0.1566817059081689,
+        "macro_f1": 0.12601469204252191,
+        "weighted_precision": 0.28747010834280295,
+        "weighted_recall": 0.15453096781047487,
+        "weighted_f1": 0.1249706446358674,
+        "per_class": {
+          "BPSK": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 10823,
+            "predicted_count": 0
+          },
+          "QPSK": {
+            "precision": 0.3399150212446888,
+            "recall": 0.5883370825402319,
+            "f1": 0.43088426321959256,
+            "support": 11558,
+            "predicted_count": 20005
+          },
+          "QAM": {
+            "precision": 0.7792421746293245,
+            "recall": 0.038389741092443794,
+            "f1": 0.07317450495049505,
+            "support": 12321,
+            "predicted_count": 607
+          },
+          "WBFM": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 12363,
+            "predicted_count": 0
+          }
+        },
+        "support_total": 47065
+      },
+      "window_level_metrics": {
+        "accuracy": 0.1672899181982365,
+        "macro_precision": 0.24271127349932106,
+        "macro_recall": 0.16815173447612453,
+        "macro_f1": 0.15982821275433678,
+        "weighted_precision": 0.2484049519792486,
+        "weighted_recall": 0.1672899181982365,
+        "weighted_f1": 0.1603310129545719,
+        "per_class": {
+          "BPSK": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 86584,
+            "predicted_count": 0
+          },
+          "QPSK": {
+            "precision": 0.36153779585478774,
+            "recall": 0.5421893926284824,
+            "f1": 0.43380781378445027,
+            "support": 92464,
+            "predicted_count": 138666
+          },
+          "QAM": {
+            "precision": 0.4843072981424965,
+            "recall": 0.1304074344614885,
+            "f1": 0.20548481723936726,
+            "support": 98568,
+            "predicted_count": 26541
+          },
+          "WBFM": {
+            "precision": 0.125,
+            "recall": 1.0110814527218312e-05,
+            "f1": 2.021999352960207e-05,
+            "support": 98904,
+            "predicted_count": 8
+          }
+        },
+        "support_total": 376520
+      },
+      "confusion_matrix": {
+        "rows": [
+          "BPSK",
+          "QPSK",
+          "QAM",
+          "WBFM"
+        ],
+        "columns": [
+          "BPSK",
+          "QPSK",
+          "QAM",
+          "WBFM",
+          "OTHER_CLOSED"
+        ],
+        "matrix": [
+          [
+            0,
+            6297,
+            129,
+            0,
+            4397
+          ],
+          [
+            0,
+            6800,
+            5,
+            0,
+            4753
+          ],
+          [
+            0,
+            6519,
+            473,
+            0,
+            5329
+          ],
+          [
+            0,
+            389,
+            0,
+            0,
+            11974
+          ]
+        ]
+      },
+      "snr_breakdown": {
+        "20": {
+          "snr_db": 20,
+          "sample_count": 8189,
+          "accuracy": 0.14666015386494077,
+          "macro_f1": 0.12072720611458124,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.4146971935007386,
+            "QAM": 0.06821163095758635,
+            "WBFM": 0.0
+          }
+        },
+        "22": {
+          "snr_db": 22,
+          "sample_count": 7845,
+          "accuracy": 0.17858508604206502,
+          "macro_f1": 0.13818162947297005,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.4761390239510174,
+            "QAM": 0.07658749394086281,
+            "WBFM": 0.0
+          }
+        },
+        "24": {
+          "snr_db": 24,
+          "sample_count": 7677,
+          "accuracy": 0.15005861664712777,
+          "macro_f1": 0.12499698605973311,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.426183844011142,
+            "QAM": 0.07380410022779042,
+            "WBFM": 0.0
+          }
+        },
+        "26": {
+          "snr_db": 26,
+          "sample_count": 8139,
+          "accuracy": 0.15653028627595528,
+          "macro_f1": 0.12544377628837977,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.43139387348196484,
+            "QAM": 0.07038123167155425,
+            "WBFM": 0.0
+          }
+        },
+        "28": {
+          "snr_db": 28,
+          "sample_count": 7670,
+          "accuracy": 0.1547588005215124,
+          "macro_f1": 0.12451846954159222,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.4203119056675543,
+            "QAM": 0.0777619724988146,
+            "WBFM": 0.0
+          }
+        },
+        "30": {
+          "snr_db": 30,
+          "sample_count": 7545,
+          "accuracy": 0.14022531477799868,
+          "macro_f1": 0.12145428033794646,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.4126851658668892,
+            "QAM": 0.07313195548489666,
+            "WBFM": 0.0
+          }
+        }
+      },
+      "channel_breakdown": {
+        "clean": {
+          "sample_count": 24077,
+          "accuracy": 0.16821032520662874,
+          "macro_f1": 0.14402259669816853,
+          "weighted_f1": 0.1444760983240402
+        },
+        "multipath": {
+          "sample_count": 22988,
+          "accuracy": 0.14020358447885853,
+          "macro_f1": 0.10585432287377144,
+          "weighted_f1": 0.10294406848708379
+        },
+        "degradation": {
+          "accuracy_drop_abs": 0.028006740727770207,
+          "accuracy_drop_pct": 16.649834481543785,
+          "macro_f1_drop_abs": 0.03816827382439708
+        }
+      },
+      "confidence_analysis": {
+        "is_calibrated": false,
+        "calibration_status": "Raw softmax output is not calibrated unless temperature scaling is applied.",
+        "raw_ece": 0.7607100593718258,
+        "num_samples": 47065,
+        "correct_distribution": {
+          "mean": 0.895983008211193,
+          "median": 0.9381275177001953,
+          "std": 0.12918029682022142,
+          "q25": 0.8649835586547852,
+          "q75": 0.9998767375946045,
+          "q90": 0.9999996423721313,
+          "min": 0.37525713443756104,
+          "max": 1.0,
+          "count": 7273
+        },
+        "incorrect_distribution": {
+          "mean": 0.9187609199239791,
+          "median": 0.9991485178470612,
+          "std": 0.13277080416434967,
+          "q25": 0.8747653961181641,
+          "q75": 0.9995763897895813,
+          "q90": 0.999629020690918,
+          "min": 0.36869028210639954,
+          "max": 1.0,
+          "count": 39792
+        },
+        "high_confidence_threshold": 0.8,
+        "high_confidence_correct_count": 5888,
+        "high_confidence_correct_rate": 0.8095696411384573,
+        "high_confidence_error_count": 32479,
+        "overconfidence_rate": 0.816219340570969,
+        "ece_details": {
+          "ece": 0.7607100593718258,
+          "num_bins": 10,
+          "sample_count": 47065,
+          "bins": [
+            {
+              "bin_lower": 0.0,
+              "bin_upper": 0.1,
+              "count": 0,
+              "accuracy": 0.0,
+              "confidence": 0.05,
+              "calibration_error": 0.0
+            },
+            {
+              "bin_lower": 0.1,
+              "bin_upper": 0.2,
+              "count": 0,
+              "accuracy": 0.0,
+              "confidence": 0.15000000000000002,
+              "calibration_error": 0.0
+            },
+            {
+              "bin_lower": 0.2,
+              "bin_upper": 0.30000000000000004,
+              "count": 0,
+              "accuracy": 0.0,
+              "confidence": 0.25,
+              "calibration_error": 0.0
+            },
+            {
+              "bin_lower": 0.30000000000000004,
+              "bin_upper": 0.4,
+              "count": 11,
+              "accuracy": 0.2727272727272727,
+              "confidence": 0.384431543675336,
+              "calibration_error": 0.11170427094806329
+            },
+            {
+              "bin_lower": 0.4,
+              "bin_upper": 0.5,
+              "count": 301,
+              "accuracy": 0.19269102990033224,
+              "confidence": 0.48077955683600465,
+              "calibration_error": 0.28808852693567244
+            },
+            {
+              "bin_lower": 0.5,
+              "bin_upper": 0.6000000000000001,
+              "count": 1698,
+              "accuracy": 0.18492343934040048,
+              "confidence": 0.545100828889402,
+              "calibration_error": 0.3601773895490016
+            },
+            {
+              "bin_lower": 0.6000000000000001,
+              "bin_upper": 0.7000000000000001,
+              "count": 2674,
+              "accuracy": 0.09947643979057591,
+              "confidence": 0.6436849068641306,
+              "calibration_error": 0.5442084670735547
+            },
+            {
+              "bin_lower": 0.7000000000000001,
+              "bin_upper": 0.8,
+              "count": 4014,
+              "accuracy": 0.18535127055306427,
+              "confidence": 0.7518541179578816,
+              "calibration_error": 0.5665028474048173
+            },
+            {
+              "bin_lower": 0.8,
+              "bin_upper": 0.9,
+              "count": 6476,
+              "accuracy": 0.30033971587399627,
+              "confidence": 0.8642102135615706,
+              "calibration_error": 0.5638704976875744
+            },
+            {
+              "bin_lower": 0.9,
+              "bin_upper": 1.0,
+              "count": 31891,
+              "accuracy": 0.12363989840393841,
+              "confidence": 0.9929294512505209,
+              "calibration_error": 0.8692895528465825
+            }
+          ]
+        }
+      },
+      "open_set_rejection": {
+        "total_samples": 80000,
+        "known_samples": 47065,
+        "unknown_samples": 32935,
+        "known_accepted": 31891,
+        "known_rejected": 15174,
+        "unknown_rejected": 3157,
+        "unknown_false_accepted": 29778,
+        "known_acceptance_rate": 0.6775948156804419,
+        "unknown_rejection_rate": 0.09585547290116897,
+        "false_acceptance_rate": 0.9041445270988311,
+        "false_rejection_rate": 0.32240518431955806,
+        "thresholds": {
+          "confidence_threshold": 0.9,
+          "entropy_threshold": 0.5,
+          "source": "M6-DEV-SUBSET-CALIBRATED"
+        }
+      },
+      "latency": {
+        "model_only_single_sample": {
+          "mean_ms": 0.7917019998421893,
+          "median_ms": 0.7079000060912222,
+          "p95_ms": 1.4150549948681146,
+          "min_ms": 0.4107999848201871,
+          "max_ms": 1.715600024908781,
+          "throughput_samples_per_sec": 1263.1015207733858
+        },
+        "model_only_batch_per_sample": {
+          "mean_ms": 0.16108195307879214,
+          "median_ms": 0.15537421859335154,
+          "p95_ms": 0.19231414055411733,
+          "min_ms": 0.13172031231079018,
+          "max_ms": 0.3169265623910178,
+          "throughput_samples_per_sec": 6208.020084725797
+        },
+        "preprocessing_plus_inference": {
+          "mean_ms": 0.6598300000769086,
+          "median_ms": 0.5643999902531505,
+          "p95_ms": 1.1599099918385032,
+          "min_ms": 0.4040999920107424,
+          "max_ms": 2.24760000128299,
+          "throughput_samples_per_sec": 1515.5418818232602
+        },
+        "full_frame_pipeline_8windows": {
+          "mean_ms": 2.299715001427103,
+          "median_ms": 2.162849996238947,
+          "p95_ms": 3.0932900175685063,
+          "min_ms": 1.6590000013820827,
+          "max_ms": 5.882199999177828,
+          "throughput_samples_per_sec": 434.83649033877833
+        },
+        "config": {
+          "num_runs": 100,
+          "warmup_runs": 10,
+          "batch_size": 64,
+          "in_channels": 2,
+          "device": "cpu"
+        }
+      }
+    },
+    "m6": {
+      "checkpoint": "models/m6_robust_cnn.pt",
+      "in_channels": 3,
+      "representation": "IQ_AMPLITUDE",
+      "rms_factor": 0.00854386854916811,
+      "frame_level_metrics": {
+        "accuracy": 0.03803250823329438,
+        "macro_precision": 0.07727508202383009,
+        "macro_recall": 0.03632010388767146,
+        "macro_f1": 0.04941475265017668,
+        "weighted_precision": 0.0809184137355241,
+        "weighted_recall": 0.03803250823329438,
+        "weighted_f1": 0.05174453775865946,
+        "per_class": {
+          "BPSK": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 10823,
+            "predicted_count": 0
+          },
+          "QPSK": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 11558,
+            "predicted_count": 0
+          },
+          "QAM": {
+            "precision": 0.30910032809532034,
+            "recall": 0.14528041555068583,
+            "f1": 0.19765901060070673,
+            "support": 12321,
+            "predicted_count": 5791
+          },
+          "WBFM": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 12363,
+            "predicted_count": 167
+          }
+        },
+        "support_total": 47065
+      },
+      "window_level_metrics": {
+        "accuracy": 0.04331775204504409,
+        "macro_precision": 0.09544419146464037,
+        "macro_recall": 0.04136728611321501,
+        "macro_f1": 0.05767663957106166,
+        "weighted_precision": 0.09994544433482336,
+        "weighted_recall": 0.04331775204504409,
+        "weighted_f1": 0.06039613684295365,
+        "per_class": {
+          "BPSK": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 86584,
+            "predicted_count": 1
+          },
+          "QPSK": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 92464,
+            "predicted_count": 0
+          },
+          "QAM": {
+            "precision": 0.38032901645082257,
+            "recall": 0.16535792549306064,
+            "f1": 0.23049998939352156,
+            "support": 98568,
+            "predicted_count": 42855
+          },
+          "WBFM": {
+            "precision": 0.0014477494077388786,
+            "recall": 0.00011121895979940143,
+            "f1": 0.0002065688907250568,
+            "support": 98904,
+            "predicted_count": 7598
+          }
+        },
+        "support_total": 376520
+      },
+      "confusion_matrix": {
+        "rows": [
+          "BPSK",
+          "QPSK",
+          "QAM",
+          "WBFM"
+        ],
+        "columns": [
+          "BPSK",
+          "QPSK",
+          "QAM",
+          "WBFM",
+          "OTHER_CLOSED"
+        ],
+        "matrix": [
+          [
+            0,
+            0,
+            1,
+            1,
+            10821
+          ],
+          [
+            0,
+            0,
+            4000,
+            162,
+            7396
+          ],
+          [
+            0,
+            0,
+            1790,
+            4,
+            10527
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            12363
+          ]
+        ]
+      },
+      "snr_breakdown": {
+        "20": {
+          "snr_db": 20,
+          "sample_count": 8189,
+          "accuracy": 0.03590181951398217,
+          "macro_f1": 0.04700991365526063,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.0,
+            "QAM": 0.18803965462104252,
+            "WBFM": 0.0
+          }
+        },
+        "22": {
+          "snr_db": 22,
+          "sample_count": 7845,
+          "accuracy": 0.03467176545570427,
+          "macro_f1": 0.045591686221924235,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.0,
+            "QAM": 0.18236674488769694,
+            "WBFM": 0.0
+          }
+        },
+        "24": {
+          "snr_db": 24,
+          "sample_count": 7677,
+          "accuracy": 0.03334635925491729,
+          "macro_f1": 0.043170320404721754,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.0,
+            "QAM": 0.17268128161888702,
+            "WBFM": 0.0
+          }
+        },
+        "26": {
+          "snr_db": 26,
+          "sample_count": 8139,
+          "accuracy": 0.0491460867428431,
+          "macro_f1": 0.05934718100890208,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.0,
+            "QAM": 0.23738872403560832,
+            "WBFM": 0.0
+          }
+        },
+        "28": {
+          "snr_db": 28,
+          "sample_count": 7670,
+          "accuracy": 0.03402868318122555,
+          "macro_f1": 0.04398382204246713,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.0,
+            "QAM": 0.17593528816986853,
+            "WBFM": 0.0
+          }
+        },
+        "30": {
+          "snr_db": 30,
+          "sample_count": 7545,
+          "accuracy": 0.04068919814446653,
+          "macro_f1": 0.05685185185185184,
+          "per_class_f1": {
+            "BPSK": 0.0,
+            "QPSK": 0.0,
+            "QAM": 0.22740740740740736,
+            "WBFM": 0.0
+          }
+        }
+      },
+      "channel_breakdown": {
+        "clean": {
+          "sample_count": 24077,
+          "accuracy": 0.00016613365452506542,
+          "macro_f1": 0.0002729257641921398,
+          "weighted_f1": 0.00028352449283439797
+        },
+        "multipath": {
+          "sample_count": 22988,
+          "accuracy": 0.07769270923960327,
+          "macro_f1": 0.08280786350148368,
+          "weighted_f1": 0.08743311566504315
+        },
+        "degradation": {
+          "accuracy_drop_abs": -0.0775265755850782,
+          "accuracy_drop_pct": -46665.18400904819,
+          "macro_f1_drop_abs": -0.08253493773729155
+        }
+      },
+      "confidence_analysis": {
+        "is_calibrated": false,
+        "calibration_status": "Raw softmax output is not calibrated unless temperature scaling is applied.",
+        "raw_ece": 0.5363608410403261,
+        "num_samples": 47065,
+        "correct_distribution": {
+          "mean": 0.594859752458567,
+          "median": 0.5820982456207275,
+          "std": 0.1077231836441132,
+          "q25": 0.515845775604248,
+          "q75": 0.657389760017395,
+          "q90": 0.7426467061042786,
+          "min": 0.3092261552810669,
+          "max": 0.9940868020057678,
+          "count": 1790
+        },
+        "incorrect_distribution": {
+          "mean": 0.5735841861217473,
+          "median": 0.4178819954395294,
+          "std": 0.21848691418069596,
+          "q25": 0.4061865359544754,
+          "q75": 0.7186837494373322,
+          "q90": 0.9926804900169373,
+          "min": 0.1967422217130661,
+          "max": 1.0,
+          "count": 45275
+        },
+        "high_confidence_threshold": 0.8,
+        "high_confidence_correct_count": 85,
+        "high_confidence_correct_rate": 0.04748603351955307,
+        "high_confidence_error_count": 9490,
+        "overconfidence_rate": 0.20960795140806185,
+        "ece_details": {
+          "ece": 0.5363608410403261,
+          "num_bins": 10,
+          "sample_count": 47065,
+          "bins": [
+            {
+              "bin_lower": 0.0,
+              "bin_upper": 0.1,
+              "count": 0,
+              "accuracy": 0.0,
+              "confidence": 0.05,
+              "calibration_error": 0.0
+            },
+            {
+              "bin_lower": 0.1,
+              "bin_upper": 0.2,
+              "count": 1,
+              "accuracy": 0.0,
+              "confidence": 0.1967422217130661,
+              "calibration_error": 0.1967422217130661
+            },
+            {
+              "bin_lower": 0.2,
+              "bin_upper": 0.30000000000000004,
+              "count": 51,
+              "accuracy": 0.0,
+              "confidence": 0.278128461802707,
+              "calibration_error": 0.278128461802707
+            },
+            {
+              "bin_lower": 0.30000000000000004,
+              "bin_upper": 0.4,
+              "count": 1385,
+              "accuracy": 0.021660649819494584,
+              "confidence": 0.37310987588300604,
+              "calibration_error": 0.3514492260635115
+            },
+            {
+              "bin_lower": 0.4,
+              "bin_upper": 0.5,
+              "count": 24195,
+              "accuracy": 0.010746021905352345,
+              "confidence": 0.41248562313426895,
+              "calibration_error": 0.4017396012289166
+            },
+            {
+              "bin_lower": 0.5,
+              "bin_upper": 0.6000000000000001,
+              "count": 4845,
+              "accuracy": 0.15128998968008256,
+              "confidence": 0.5549356375070302,
+              "calibration_error": 0.4036456478269477
+            },
+            {
+              "bin_lower": 0.6000000000000001,
+              "bin_upper": 0.7000000000000001,
+              "count": 4479,
+              "accuracy": 0.09868274168341147,
+              "confidence": 0.6406436780915513,
+              "calibration_error": 0.5419609364081398
+            },
+            {
+              "bin_lower": 0.7000000000000001,
+              "bin_upper": 0.8,
+              "count": 2534,
+              "accuracy": 0.0947119179163378,
+              "confidence": 0.7457665727659766,
+              "calibration_error": 0.6510546548496388
+            },
+            {
+              "bin_lower": 0.8,
+              "bin_upper": 0.9,
+              "count": 2779,
+              "accuracy": 0.02626844188557035,
+              "confidence": 0.8574223032783544,
+              "calibration_error": 0.8311538613927841
+            },
+            {
+              "bin_lower": 0.9,
+              "bin_upper": 1.0,
+              "count": 6796,
+              "accuracy": 0.0017657445556209534,
+              "confidence": 0.9846879908570547,
+              "calibration_error": 0.9829222463014338
+            }
+          ]
+        }
+      },
+      "open_set_rejection": {
+        "total_samples": 80000,
+        "known_samples": 47065,
+        "unknown_samples": 32935,
+        "known_accepted": 22187,
+        "known_rejected": 24878,
+        "unknown_rejected": 19339,
+        "unknown_false_accepted": 13596,
+        "known_acceptance_rate": 0.47141187719111866,
+        "unknown_rejection_rate": 0.587186883254896,
+        "false_acceptance_rate": 0.412813116745104,
+        "false_rejection_rate": 0.5285881228088813,
+        "thresholds": {
+          "confidence_threshold": 0.4328577548265457,
+          "entropy_threshold": 1.193450355529785,
+          "source": "M6-DEV-SUBSET-CALIBRATED"
+        }
+      },
+      "latency": {
+        "model_only_single_sample": {
+          "mean_ms": 0.5752989984466694,
+          "median_ms": 0.5278000026009977,
+          "p95_ms": 0.9186299997963941,
+          "min_ms": 0.35620000562630594,
+          "max_ms": 1.2398000108078122,
+          "throughput_samples_per_sec": 1738.2265616662648
+        },
+        "model_only_batch_per_sample": {
+          "mean_ms": 0.12339790629084746,
+          "median_ms": 0.12056328159815166,
+          "p95_ms": 0.14451679694502673,
+          "min_ms": 0.10854062520593288,
+          "max_ms": 0.16253749981842702,
+          "throughput_samples_per_sec": 8103.865211805226
+        },
+        "preprocessing_plus_inference": {
+          "mean_ms": 0.7989169991924427,
+          "median_ms": 0.7084500102791935,
+          "p95_ms": 1.2817449809517711,
+          "min_ms": 0.4226999881211668,
+          "max_ms": 3.251499991165474,
+          "throughput_samples_per_sec": 1251.6944826694325
+        },
+        "full_frame_pipeline_8windows": {
+          "mean_ms": 2.364717000746168,
+          "median_ms": 2.2070499981055036,
+          "p95_ms": 3.4102299963706173,
+          "min_ms": 1.6666000010445714,
+          "max_ms": 3.591999993659556,
+          "throughput_samples_per_sec": 422.8835838218517
+        },
+        "config": {
+          "num_runs": 100,
+          "warmup_runs": 10,
+          "batch_size": 64,
+          "in_channels": 3,
+          "device": "cpu"
+        }
+      }
+    }
+  },
+  "comparison": {
+    "frame_level_accuracy": {
+      "m5": 0.15453096781047487,
+      "m6": 0.03803250823329438,
+      "delta_m6_minus_m5": -0.1164984595771805
+    },
+    "frame_level_macro_f1": {
+      "m5": 0.12601469204252191,
+      "m6": 0.04941475265017668,
+      "delta_m6_minus_m5": -0.07659993939234523
+    },
+    "multipath_f1_retention": {
+      "m5_multipath_f1": 0.10585432287377144,
+      "m6_multipath_f1": 0.08280786350148368,
+      "delta_m6_minus_m5": -0.02304645937228776
+    },
+    "latency_p95_pipeline_ms": {
+      "m5": 3.0932900175685063,
+      "m6": 3.4102299963706173
+    }
+  },
+  "temperature_scaling_calibration": {
+    "fitting_split": "M6-DEV-SUBSET",
+    "fitted_temperature": {
+      "m5": 2.4650650024414062,
+      "m6": 2.461596727371216
+    },
+    "calibrated_ece": {
+      "m5": 0.7803094916043292,
+      "m6": 0.5208957930962109
+    },
+    "ece_details_m5": {
+      "ece": 0.7803094916043292,
+      "num_bins": 10,
+      "sample_count": 47065,
+      "bins": [
+        {
+          "bin_lower": 0.0,
+          "bin_upper": 0.1,
+          "count": 0,
+          "accuracy": 0.0,
+          "confidence": 0.05,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_lower": 0.1,
+          "bin_upper": 0.2,
+          "count": 0,
+          "accuracy": 0.0,
+          "confidence": 0.15000000000000002,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_lower": 0.2,
+          "bin_upper": 0.30000000000000004,
+          "count": 0,
+          "accuracy": 0.0,
+          "confidence": 0.25,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_lower": 0.30000000000000004,
+          "bin_upper": 0.4,
+          "count": 2,
+          "accuracy": 0.0,
+          "confidence": 0.37774695456027985,
+          "calibration_error": 0.37774695456027985
+        },
+        {
+          "bin_lower": 0.4,
+          "bin_upper": 0.5,
+          "count": 180,
+          "accuracy": 0.05555555555555555,
+          "confidence": 0.46595801495843464,
+          "calibration_error": 0.4104024594028791
+        },
+        {
+          "bin_lower": 0.5,
+          "bin_upper": 0.6000000000000001,
+          "count": 746,
+          "accuracy": 0.23324396782841822,
+          "confidence": 0.5532426011146873,
+          "calibration_error": 0.31999863328626904
+        },
+        {
+          "bin_lower": 0.6000000000000001,
+          "bin_upper": 0.7000000000000001,
+          "count": 1052,
+          "accuracy": 0.11216730038022814,
+          "confidence": 0.6547471407248493,
+          "calibration_error": 0.5425798403446211
+        },
+        {
+          "bin_lower": 0.7000000000000001,
+          "bin_upper": 0.8,
+          "count": 1720,
+          "accuracy": 0.04825581395348837,
+          "confidence": 0.7553736878342406,
+          "calibration_error": 0.7071178738807523
+        },
+        {
+          "bin_lower": 0.8,
+          "bin_upper": 0.9,
+          "count": 3857,
+          "accuracy": 0.02100077780658543,
+          "confidence": 0.8571764023031384,
+          "calibration_error": 0.836175624496553
+        },
+        {
+          "bin_lower": 0.9,
+          "bin_upper": 1.0,
+          "count": 39508,
+          "accuracy": 0.17199048294016403,
+          "confidence": 0.9667599773849326,
+          "calibration_error": 0.7947694944447685
+        }
+      ]
+    },
+    "ece_details_m6": {
+      "ece": 0.5208957930962109,
+      "num_bins": 10,
+      "sample_count": 47065,
+      "bins": [
+        {
+          "bin_lower": 0.0,
+          "bin_upper": 0.1,
+          "count": 0,
+          "accuracy": 0.0,
+          "confidence": 0.05,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_lower": 0.1,
+          "bin_upper": 0.2,
+          "count": 1,
+          "accuracy": 0.0,
+          "confidence": 0.19990573823451996,
+          "calibration_error": 0.19990573823451996
+        },
+        {
+          "bin_lower": 0.2,
+          "bin_upper": 0.30000000000000004,
+          "count": 4586,
+          "accuracy": 0.0,
+          "confidence": 0.29382963150388747,
+          "calibration_error": 0.29382963150388747
+        },
+        {
+          "bin_lower": 0.30000000000000004,
+          "bin_upper": 0.4,
+          "count": 18959,
+          "accuracy": 0.0,
+          "confidence": 0.3057827200276658,
+          "calibration_error": 0.3057827200276658
+        },
+        {
+          "bin_lower": 0.4,
+          "bin_upper": 0.5,
+          "count": 583,
+          "accuracy": 0.06689536878216124,
+          "confidence": 0.4539171188405202,
+          "calibration_error": 0.387021750058359
+        },
+        {
+          "bin_lower": 0.5,
+          "bin_upper": 0.6000000000000001,
+          "count": 4838,
+          "accuracy": 0.0847457627118644,
+          "confidence": 0.5532889076627547,
+          "calibration_error": 0.46854314495089033
+        },
+        {
+          "bin_lower": 0.6000000000000001,
+          "bin_upper": 0.7000000000000001,
+          "count": 2224,
+          "accuracy": 0.19469424460431656,
+          "confidence": 0.6478808285038677,
+          "calibration_error": 0.4531865838995512
+        },
+        {
+          "bin_lower": 0.7000000000000001,
+          "bin_upper": 0.8,
+          "count": 2261,
+          "accuracy": 0.17868199911543564,
+          "confidence": 0.7508752379255029,
+          "calibration_error": 0.5721932388100672
+        },
+        {
+          "bin_lower": 0.8,
+          "bin_upper": 0.9,
+          "count": 2800,
+          "accuracy": 0.09678571428571428,
+          "confidence": 0.8520937543255942,
+          "calibration_error": 0.75530804003988
+        },
+        {
+          "bin_lower": 0.9,
+          "bin_upper": 1.0,
+          "count": 10813,
+          "accuracy": 0.01008045870711181,
+          "confidence": 0.9776194871028698,
+          "calibration_error": 0.967539028395758
+        }
+      ]
+    }
+  },
+  "hypothesis_engine_interface": {
+    "ml_role": "Provides candidate modulations and model probabilities as independent evidence.",
+    "distinction": "MODEL PROBABILITY != HYPOTHESIS CONFIDENCE",
+    "evidence_contract": {
+      "candidates": "Top-k predicted modulations mapped to canonical types.",
+      "model_probabilities": "Softmax distribution over modulation classes.",
+      "open_set_decision": "KNOWN, LOW_CONFIDENCE, or UNSUPPORTED."
+    }
+  }
+}

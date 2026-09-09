@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { checkBackendHealth } from '../../services/api';
+import { HypothesisRanking } from '../../components/HypothesisRanking';
 
 export const AnalysisDashboard: React.FC = () => {
   const [backendStatus, setBackendStatus] = useState<'connecting' | 'online' | 'offline'>('connecting');
@@ -147,22 +148,7 @@ export const AnalysisDashboard: React.FC = () => {
                 <h3>Hypothesis Rankings</h3>
                 <span className="badge-future">Phase 7</span>
               </div>
-              <div className="hypothesis-table-placeholder">
-                <div className="table-header">
-                  <div>Modulation</div>
-                  <div>Estimated Rate</div>
-                  <div>Confidence</div>
-                  <div>Status</div>
-                </div>
-                <div className="table-rows">
-                  <div className="table-row-skeleton-item">
-                    <div className="skele-cell wide">Waiting for signal...</div>
-                    <div className="skele-cell"></div>
-                    <div className="skele-cell"></div>
-                    <div className="skele-cell"></div>
-                  </div>
-                </div>
-              </div>
+              <HypothesisRanking />
             </div>
 
             <div className="glass-card constellation-card">

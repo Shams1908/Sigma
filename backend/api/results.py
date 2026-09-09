@@ -37,6 +37,10 @@ class EvidenceComponentSchema(BaseModel):
 
 class EvidenceTraceSchema(BaseModel):
     ml: Optional[EvidenceComponentSchema] = None
+    mlModulation: Optional[EvidenceComponentSchema] = None
+    symbolRate: Optional[EvidenceComponentSchema] = None
+    symbol_rate: Optional[EvidenceComponentSchema] = None
+    snr: Optional[EvidenceComponentSchema] = None
     constellation: Optional[EvidenceComponentSchema] = None
     timing: Optional[EvidenceComponentSchema] = None
     fec: Optional[EvidenceComponentSchema] = None
@@ -125,8 +129,19 @@ async def rank_candidates_endpoint(
             # Reconstruct evidence trace if provided
             evidence = EvidenceTrace()
             if c_schema.evidence:
-                for dim in ["ml", "constellation", "timing", "fec", "bitstream"]:
-                    dim_data = c_schema.evidence.get(dim)
+                dim_aliases = {
+                    "ml": "ml",
+                    "mlModulation": "ml",
+                    "symbol_rate": "symbol_rate",
+                    "symbolRate": "symbol_rate",
+                    "snr": "snr",
+                    "constellation": "constellation",
+                    "timing": "timing",
+                    "fec": "fec",
+                    "bitstream": "bitstream",
+                }
+                for dim_key, target_attr in dim_aliases.items():
+                    dim_data = c_schema.evidence.get(dim_key)
                     if isinstance(dim_data, dict):
                         status_str = dim_data.get("status", "not_evaluated")
                         try:
@@ -136,7 +151,7 @@ async def rank_candidates_endpoint(
                         score = dim_data.get("score")
                         details = dim_data.get("details")
                         comp = EvidenceComponent(status=status_enum, score=score, details=details)
-                        setattr(evidence, dim, comp)
+                        setattr(evidence, target_attr, comp)
 
             cand = create_candidate(
                 modulation=c_schema.modulation,

@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-09-08T10:00:23Z",
+  "checkpoint": "models/m8_parameter_estimator.pt",
+  "in_channels": 2,
+  "parameters_estimated": [
+    "symbol_rate",
+    "snr"
+  ],
+  "metrics": {
+    "symbol_rate": {
+      "mae_baud": 26421.109375,
+      "rmse_baud": 34782.2421875,
+      "median_absolute_error_baud": 19838.53515625,
+      "relative_error_mean": 0.3654421269893646,
+      "tolerance_1pct_accuracy": 0.014,
+      "tolerance_5pct_accuracy": 0.096,
+      "tolerance_10pct_accuracy": 0.228
+    },
+    "snr": {
+      "mae_db": 5.183197975158691,
+      "rmse_db": 6.666698455810547,
+      "median_absolute_error_db": 3.828542947769165
+    },
+    "num_val_samples": 500
+  },
+  "training_time_s": 9.22195860001375
+}

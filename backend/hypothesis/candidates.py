@@ -45,22 +45,46 @@ class EvidenceComponent:
 @dataclass
 class EvidenceTrace:
     """
-    Traceability container tracking all 5 defined evidence dimensions:
-      - ml: ML classification confidence (M)
-      - constellation: Constellation agreement (C)
-      - timing: Timing/synchronization quality (T)
-      - fec: FEC validation (F)
-      - bitstream: Bitstream correlation (B)
+    Traceability container tracking all defined evidence dimensions:
+      - ml: ML modulation classification confidence
+      - symbol_rate: Symbol rate parameter agreement
+      - snr: SNR evidence / feasibility
+      - constellation: Constellation agreement
+      - timing: Timing/synchronization quality
+      - fec: FEC validation
+      - bitstream: Bitstream correlation
     """
     ml: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
+    symbol_rate: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
+    snr: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
     constellation: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
     timing: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
     fec: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
     bitstream: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
 
+    @property
+    def mlModulation(self) -> EvidenceComponent:
+        return self.ml
+
+    @mlModulation.setter
+    def mlModulation(self, val: EvidenceComponent):
+        self.ml = val
+
+    @property
+    def symbolRate(self) -> EvidenceComponent:
+        return self.symbol_rate
+
+    @symbolRate.setter
+    def symbolRate(self, val: EvidenceComponent):
+        self.symbol_rate = val
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "ml": self.ml.to_dict(),
+            "mlModulation": self.ml.to_dict(),
+            "symbolRate": self.symbol_rate.to_dict(),
+            "symbol_rate": self.symbol_rate.to_dict(),
+            "snr": self.snr.to_dict(),
             "constellation": self.constellation.to_dict(),
             "timing": self.timing.to_dict(),
             "fec": self.fec.to_dict(),
@@ -99,18 +123,17 @@ class HypothesisCandidate:
     details: str = ""
     status: str = "pending"
 
-    def identity_key(self) -> Tuple[str, float, str, str, Tuple]:
+    def identity_key(self) -> Tuple[str, float, str, str]:
         """
         Canonical hashable identity key for deduplicating genuinely identical candidate configurations.
-        Distinguishes parameter configurations (e.g., modulation, symbol rate, FEC, interleaver, sync).
+        Distinguishes parameter configurations (modulation, symbol rate, FEC, interleaver).
+        Different symbol rates (e.g. 9600 vs 4800) produce distinct keys.
         """
-        sync_items = tuple(sorted(self.sync_assumptions.items())) if self.sync_assumptions else ()
         return (
             self.modulation.strip().upper(),
-            round(float(self.symbolRate), 4),
+            round(float(self.symbolRate), 2),
             (self.fec_config or "").strip().lower(),
             (self.interleaver_config or "").strip().lower(),
-            sync_items,
         )
 
     def to_dict(self) -> Dict[str, Any]:
