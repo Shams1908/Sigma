@@ -64,6 +64,11 @@ from backend.hypothesis.engine import (
     HypothesisEngine,
     HypothesisEngineResult,
 )
+from backend.hypothesis.decoder_lab import (
+    DecoderLab,
+    DecoderLabResult,
+    run_decoder_lab,
+)
 
 
 __all__ = [
@@ -114,6 +119,9 @@ __all__ = [
     "DecoderChain",
     "HypothesisEngine",
     "HypothesisEngineResult",
+    "DecoderLab",
+    "DecoderLabResult",
+    "run_decoder_lab",
 ]
 
 

@@ -16,7 +16,11 @@ try:
         EvidenceStatus,
         EvidenceComponent,
     )
-    from backend.hypothesis.evaluator import create_ml_evidence
+    from backend.hypothesis.evaluator import (
+        create_ml_evidence,
+        create_symbol_rate_evidence,
+        create_snr_evidence,
+    )
 except ImportError:
     from core.config import settings, HypothesisSearchSettings
     from hypothesis.candidates import (
@@ -25,7 +29,11 @@ except ImportError:
         EvidenceStatus,
         EvidenceComponent,
     )
-    from hypothesis.evaluator import create_ml_evidence
+    from hypothesis.evaluator import (
+        create_ml_evidence,
+        create_symbol_rate_evidence,
+        create_snr_evidence,
+    )
 
 
 @dataclass(frozen=True)
@@ -81,9 +89,10 @@ class HypothesisSearchConfig:
     # Synchronization search
     sync_configurations: Optional[List[Optional[Union[SyncSearchConfig, Dict[str, Any]]]]] = None
 
-    # Coding & Interleaving search (identifiers only; defaults to [None])
+    # Coding, Interleaving & CRC search (identifiers only; defaults to [None])
     fec_candidates: Optional[List[Optional[str]]] = None
     interleaver_candidates: Optional[List[Optional[str]]] = None
+    crc_candidates: Optional[List[Optional[str]]] = None
 
     # Total bounds
     max_candidates: int = 24
@@ -120,6 +129,7 @@ class HypothesisSearchSummary:
     final_candidate_count: int
     max_candidates_limit: int
     pruned_by_limit: bool
+    crc_configuration_count: int = 1
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -130,6 +140,7 @@ class HypothesisSearchSummary:
             "sync_configuration_count": self.sync_configuration_count,
             "fec_configuration_count": self.fec_configuration_count,
             "interleaver_configuration_count": self.interleaver_configuration_count,
+            "crc_configuration_count": self.crc_configuration_count,
             "total_combinations_before_pruning": self.total_combinations_before_pruning,
             "candidates_after_deduplication": self.candidates_after_deduplication,
             "final_candidate_count": self.final_candidate_count,
@@ -398,9 +409,10 @@ def generate_hypothesis_search_with_summary(
         # Default: single baseline sync configuration
         sync_configs.append(DEFAULT_SYNC_CONFIG.to_dict())
 
-    # Step 4: FEC and Interleaver identifiers
+    # Step 4: FEC, Interleaver, and CRC identifiers
     fec_list = search_config.fec_candidates if search_config.fec_candidates else [None]
     intl_list = search_config.interleaver_candidates if search_config.interleaver_candidates else [None]
+    crc_list = search_config.crc_candidates if search_config.crc_candidates else [None]
 
     # Compute pre-pruning combination count
     total_combinations = (
@@ -409,6 +421,7 @@ def generate_hypothesis_search_with_summary(
         * len(sync_configs)
         * len(fec_list)
         * len(intl_list)
+        * len(crc_list)
     )
 
     # Step 5 & 6: Cartesian combination generation with prioritized ordering & deduplication
@@ -425,58 +438,91 @@ def generate_hypothesis_search_with_summary(
 
         # Sort rates by closeness to center estimate for prioritized addition
         for rate in sorted(sym_rates, key=lambda r: abs(r - est_rate)):
+            # Symbol-rate evidence: if M8 parameter_result was provided, attach Gaussian agreement
+            if parameter_result is not None and est_rate > 0:
+                sym_comp = create_symbol_rate_evidence(
+                    candidate_baud=rate,
+                    estimated_baud=est_rate,
+                    uncertainty_baud=est_unc or 0.0,
+                    details={"m8_symbol_rate": m8_metadata.get("symbol_rate_m8")},
+                )
+            else:
+                sym_comp = EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED)
+
+            # SNR evidence: if M8 parameter_result was provided, preserve telemetry as NOT_EVALUATED
+            if parameter_result is not None and "snr_m8" in m8_metadata:
+                snr_m8 = m8_metadata["snr_m8"]
+                est_snr = snr_m8.get("estimate") if isinstance(snr_m8, dict) else None
+                unc_snr = snr_m8.get("uncertainty") if isinstance(snr_m8, dict) else None
+                snr_comp = create_snr_evidence(
+                    estimated_snr_db=est_snr,
+                    uncertainty_db=unc_snr,
+                    status=EvidenceStatus.NOT_EVALUATED,
+                    details={"m8_snr": snr_m8},
+                )
+            else:
+                snr_comp = EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED)
+
             for sync_cfg in sync_configs:
                 # Merge M8 metadata into sync assumptions if present
-                active_sync: Optional[Dict[str, Any]] = None
+                base_sync: Optional[Dict[str, Any]] = None
                 if sync_cfg is not None or m8_metadata:
-                    active_sync = dict(sync_cfg) if sync_cfg is not None else {}
+                    base_sync = dict(sync_cfg) if sync_cfg is not None else {}
                     if m8_metadata:
-                        active_sync.update(m8_metadata)
-                    active_sync["estimated_symbol_rate_baud"] = float(est_rate)
+                        base_sync.update(m8_metadata)
+                    base_sync["estimated_symbol_rate_baud"] = float(est_rate)
                     if est_unc is not None:
-                        active_sync["symbol_rate_uncertainty_baud"] = float(est_unc)
+                        base_sync["symbol_rate_uncertainty_baud"] = float(est_unc)
 
                 for fec in fec_list:
                     for intl in intl_list:
-                        # Construct evidence container
-                        evidence = EvidenceTrace(
-                            ml=ml_comp,
-                            symbol_rate=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
-                            snr=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
-                            constellation=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
-                            timing=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
-                            fec=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
-                            bitstream=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
-                        )
+                        for crc in crc_list:
+                            active_sync = dict(base_sync) if base_sync is not None else {}
+                            if crc is not None and str(crc).lower() != "none":
+                                active_sync["crc_scheme"] = str(crc)
 
-                        # Construct details provenance
-                        details_parts = [f"Hypothesis: {mod} at {rate:g} Baud (ML prob: {prob:.4f})"]
-                        if fec and str(fec).lower() != "none":
-                            details_parts.append(f"FEC: {fec}")
-                        if intl and str(intl).lower() != "none":
-                            details_parts.append(f"Interleaver: {intl}")
-                        if active_sync and active_sync.get("carrier_recovery"):
-                            details_parts.append(
-                                f"Sync: {active_sync['carrier_recovery']}/{active_sync.get('timing_recovery', '')}"
+                            # Construct evidence container
+                            evidence = EvidenceTrace(
+                                ml=ml_comp,
+                                symbol_rate=sym_comp,
+                                snr=snr_comp,
+                                constellation=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
+                                timing=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
+                                fec=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
+                                bitstream=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
+                                interleaver=EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED),
                             )
-                        details_str = "; ".join(details_parts)
 
-                        cand = create_candidate(
-                            modulation=mod,
-                            symbol_rate=rate,
-                            fec_config=fec,
-                            interleaver_config=intl,
-                            sync_assumptions=active_sync,
-                            evidence=evidence,
-                            details=details_str,
-                        )
+                            # Construct details provenance
+                            details_parts = [f"Hypothesis: {mod} at {rate:g} Baud (ML prob: {prob:.4f})"]
+                            if fec and str(fec).lower() != "none":
+                                details_parts.append(f"FEC: {fec}")
+                            if intl and str(intl).lower() != "none":
+                                details_parts.append(f"Interleaver: {intl}")
+                            if crc and str(crc).lower() != "none":
+                                details_parts.append(f"CRC: {crc}")
+                            if active_sync and active_sync.get("carrier_recovery"):
+                                details_parts.append(
+                                    f"Sync: {active_sync['carrier_recovery']}/{active_sync.get('timing_recovery', '')}"
+                                )
+                            details_str = "; ".join(details_parts)
 
-                        key = cand.identity_key()
-                        if key not in seen_keys:
-                            seen_keys.add(key)
-                            total_unique_count += 1
-                            if len(candidates) < search_config.max_candidates:
-                                candidates.append(cand)
+                            cand = create_candidate(
+                                modulation=mod,
+                                symbol_rate=rate,
+                                fec_config=fec,
+                                interleaver_config=intl,
+                                sync_assumptions=active_sync if active_sync else None,
+                                evidence=evidence,
+                                details=details_str,
+                            )
+
+                            key = cand.identity_key()
+                            if key not in seen_keys:
+                                seen_keys.add(key)
+                                total_unique_count += 1
+                                if len(candidates) < search_config.max_candidates:
+                                    candidates.append(cand)
 
     pruned_by_limit = total_unique_count > len(candidates)
 
@@ -488,6 +534,7 @@ def generate_hypothesis_search_with_summary(
         sync_configuration_count=len(sync_configs),
         fec_configuration_count=len(fec_list),
         interleaver_configuration_count=len(intl_list),
+        crc_configuration_count=len(crc_list),
         total_combinations_before_pruning=total_combinations,
         candidates_after_deduplication=total_unique_count,
         final_candidate_count=len(candidates),
