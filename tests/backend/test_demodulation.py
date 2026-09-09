@@ -175,10 +175,12 @@ class TestDispatcher:
         r = demodulate(_clean_qpsk_symbols(), "QPSK")
         assert r.modulation == "QPSK"
 
-    def test_16qam_raises_not_implemented(self):
-        from demodulation.qam_demod import QAMDemodNotImplemented
-        with pytest.raises(QAMDemodNotImplemented):
-            demodulate(_clean_bpsk_symbols(), "16QAM")
+    def test_16qam_now_implemented(self):
+        """16-QAM is now implemented; demodulate() returns a valid DemodResult."""
+        from demodulation.qam_demod import demod_qam16, _QAM16_CONST
+        result = demodulate(_QAM16_CONST[:4], "16QAM")
+        assert isinstance(result, DemodResult)
+        assert result.modulation == "QAM16"
 
 
 # ── EVM and score ─────────────────────────────────────────────────────────────
