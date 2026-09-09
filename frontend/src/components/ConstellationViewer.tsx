@@ -558,18 +558,41 @@ const ConstellationViewer = memo(function ConstellationViewer({ data }: Constell
 
   if (isExpanded) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#050505] flex flex-col w-screen h-screen overflow-hidden text-[11px] text-gray-300 font-mono">
-        <div className="h-12 bg-[#0A0A0A] border-b border-[#222] flex items-center justify-between px-4 shrink-0">
-          <div className="text-sm font-bold text-sigma-teal uppercase tracking-wider">
-            CONSTELLATION FOCUS MODE
-          </div>
+      <div className="fixed inset-0 z-50 bg-[#050505] font-mono text-[11px] text-gray-300 overflow-hidden">
+        
+        <div className="absolute inset-0 z-10">
+          {traceMode === '3d_helix' ? (
+            <Canvas camera={{ position: [5, 5, 10], fov: 60 }} className="block w-full h-full outline-none absolute inset-0">
+              <Constellation3D 
+                iqData={data} 
+                showUnitCircle={showUnitCircle}
+                onHover={setHoverInfo}
+                onHoverEnd={() => setHoverInfo(null)}
+              />
+            </Canvas>
+          ) : (
+            <canvas 
+              ref={canvasRef} 
+              className="block w-full h-full outline-none absolute inset-0"
+              onWheel={handleWheel}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+            />
+          )}
+        </div>
+
+        <div className="absolute top-0 left-0 right-0 h-10 bg-[#0A0A0A]/90 border-b border-[#222] backdrop-blur-sm flex items-center justify-between px-4 z-50">
+          <div className="font-bold text-white tracking-widest">CONSTELLATION - FOCUS MODE</div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTraceMode('scatter')}
               className={`px-3 py-1 border rounded transition-all ${
                 traceMode === 'scatter'
-                  ? 'border-sigma-teal text-sigma-teal bg-sigma-teal/10'
-                  : 'border-[#222] text-gray-400 hover:border-sigma-teal/50'
+                  ? 'border-[#00E5FF] text-[#00E5FF] bg-[#00E5FF]/20'
+                  : 'border-[#222] text-gray-400 hover:border-[#444] bg-black/50'
               }`}
             >
               SCATTER
@@ -578,8 +601,8 @@ const ConstellationViewer = memo(function ConstellationViewer({ data }: Constell
               onClick={() => setTraceMode('density')}
               className={`px-3 py-1 border rounded transition-all ${
                 traceMode === 'density'
-                  ? 'border-sigma-teal text-sigma-teal bg-sigma-teal/10'
-                  : 'border-[#222] text-gray-400 hover:border-sigma-teal/50'
+                  ? 'border-[#00E5FF] text-[#00E5FF] bg-[#00E5FF]/20'
+                  : 'border-[#222] text-gray-400 hover:border-[#444] bg-black/50'
               }`}
             >
               DENSITY
@@ -588,8 +611,8 @@ const ConstellationViewer = memo(function ConstellationViewer({ data }: Constell
               onClick={() => setTraceMode('trajectory')}
               className={`px-3 py-1 border rounded transition-all ${
                 traceMode === 'trajectory'
-                  ? 'border-sigma-teal text-sigma-teal bg-sigma-teal/10'
-                  : 'border-[#222] text-gray-400 hover:border-sigma-teal/50'
+                  ? 'border-[#00E5FF] text-[#00E5FF] bg-[#00E5FF]/20'
+                  : 'border-[#222] text-gray-400 hover:border-[#444] bg-black/50'
               }`}
             >
               TRAJECTORY
@@ -598,164 +621,130 @@ const ConstellationViewer = memo(function ConstellationViewer({ data }: Constell
               onClick={() => setTraceMode('3d_helix')}
               className={`px-3 py-1 border rounded transition-all ${
                 traceMode === '3d_helix'
-                  ? 'text-[#00E5FF] border-[#00E5FF] bg-[#00E5FF]/10 shadow-[0_0_8px_rgba(0,229,255,0.4)]'
-                  : 'border-[#222] text-gray-400 bg-[#0A0A0A] hover:border-[#00E5FF]/50'
+                  ? 'border-[#00E5FF] text-[#00E5FF] bg-[#00E5FF]/20'
+                  : 'border-[#222] text-gray-400 hover:border-[#444] bg-black/50'
               }`}
             >
               3D HELIX
             </button>
           </div>
-          <button
+          <button 
             onClick={() => {
               setIsExpanded(false);
               setZoomLevel(1);
               setPanOffset({ x: 0, y: 0 });
               setCursor(null);
-            }}
-            className="px-4 py-1 border border-[#222] hover:border-red-500 text-gray-400 hover:text-red-400 rounded transition-all"
+            }} 
+            className="border border-[#222] bg-black/50 px-3 py-1 hover:bg-[#222] transition-colors text-white"
           >
-            CLOSE [ESC]
+            Close (ESC)
           </button>
         </div>
 
-        <div className="flex-1 flex flex-row overflow-hidden">
-          <div className="w-64 bg-[#0A0A0A] border-r border-[#222] flex flex-col p-4 shrink-0 space-y-6">
-            <div className="bg-[#111] border border-[#222] rounded">
-              <div className="bg-[#0A0A0A] px-3 py-2 border-b border-[#222] text-xs uppercase tracking-wider text-gray-400">
-                Reference Overlays
-              </div>
-              <div className="p-3 space-y-3">
-                <div>
-                  <label className="block text-[10px] uppercase text-gray-500 mb-1">Target Modulation</label>
-                  <select
-                    value={targetModulation}
-                    onChange={(e) => setTargetModulation(e.target.value as TargetModulation)}
-                    className="w-full bg-[#0A0A0A] border border-[#222] text-gray-300 px-2 py-1 rounded text-xs focus:outline-none focus:border-sigma-teal"
-                  >
-                    <option value="none">None</option>
-                    <option value="bpsk">BPSK</option>
-                    <option value="qpsk">QPSK</option>
-                    <option value="16qam">16-QAM</option>
-                    <option value="64qam">64-QAM</option>
-                  </select>
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showUnitCircle}
-                    onChange={(e) => setShowUnitCircle(e.target.checked)}
-                    className="w-3 h-3"
-                  />
-                  <span className="text-xs">Show Unit Circle</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showEvmVectors}
-                    onChange={(e) => setShowEvmVectors(e.target.checked)}
-                    className="w-3 h-3"
-                  />
-                  <span className="text-xs">Show EVM Vectors</span>
-                </label>
-              </div>
+        <div className="absolute top-14 left-4 w-64 bg-[#0A0A0A]/85 border border-[#222] backdrop-blur-md p-4 flex flex-col space-y-6 z-50 shadow-2xl rounded-sm">
+          
+          <div className="font-bold text-[#00E5FF] tracking-widest border-b border-[#222] pb-1">- VISUALIZATION</div>
+          
+          <div className="flex flex-col space-y-3">
+            <div>
+              <label className="block text-[10px] uppercase text-gray-500 mb-1">Target Modulation</label>
+              <select
+                value={targetModulation}
+                onChange={(e) => setTargetModulation(e.target.value as TargetModulation)}
+                className="w-full bg-[#0A0A0A] border border-[#222] text-gray-300 px-2 py-1 rounded text-xs focus:outline-none focus:border-[#00E5FF]"
+              >
+                <option value="none">None</option>
+                <option value="bpsk">BPSK</option>
+                <option value="qpsk">QPSK</option>
+                <option value="16qam">16-QAM</option>
+                <option value="64qam">64-QAM</option>
+              </select>
             </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showUnitCircle}
+                onChange={(e) => setShowUnitCircle(e.target.checked)}
+                className="w-3 h-3"
+              />
+              <span className="text-xs">Show Unit Circle</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showEvmVectors}
+                onChange={(e) => setShowEvmVectors(e.target.checked)}
+                className="w-3 h-3"
+              />
+              <span className="text-xs">Show EVM Vectors</span>
+            </label>
+          </div>
 
-            <div className="bg-[#111] border border-[#222] rounded">
-              <div className="bg-[#0A0A0A] px-3 py-2 border-b border-[#222] text-xs uppercase tracking-wider text-gray-400">
-                Signal Info
-              </div>
-              <div className="p-3 space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Total Points</span>
-                  <span className="text-sigma-teal font-bold">{data.length}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Rendered</span>
-                  <span className="text-sigma-teal font-bold">{displayData.length}</span>
-                </div>
-              </div>
+          <div className="font-bold text-[#00E5FF] tracking-widest border-b border-[#222] pb-1 mt-6">- LEGEND & CONTROLS</div>
+          <div className="flex flex-col space-y-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-[#FF3366]"></div>
+              <span>X-AXIS : IN-PHASE (I)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-[#00FF66]"></div>
+              <span>Y-AXIS : QUADRATURE (Q)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-[#0099FF]"></div>
+              <span>Z-AXIS : TIME (t)</span>
             </div>
           </div>
 
-          <div className="flex-1 flex bg-[#050505] relative items-center justify-center p-4">
-            <div className="aspect-square h-full max-h-[85vh] border border-[#222] bg-[#0A0A0A] relative">
-              {traceMode === '3d_helix' ? (
-                <>
-                  <Canvas
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-                    camera={{ position: [5, 5, 10], fov: 45 }}
-                  >
-                    <Constellation3D 
-                      iqData={data} 
-                      showUnitCircle={showUnitCircle}
-                      onHover={setHoverInfo}
-                      onHoverEnd={() => setHoverInfo(null)}
-                    />
-                  </Canvas>
-                  {hoverInfo && (
-                    <div
-                      style={{
-                        position: 'fixed',
-                        top: hoverInfo.y + 15,
-                        left: hoverInfo.x + 15,
-                        pointerEvents: 'none',
-                        zIndex: 9999
-                      }}
-                      className="bg-[#050505] border border-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.2)] p-2 font-mono text-[10px] text-gray-300 flex flex-col space-y-1 min-w-[120px]"
-                    >
-                      <div className="text-[#00E5FF] font-bold border-b border-[#222] pb-1 mb-1">DATA POINT</div>
-                      <div>I: {hoverInfo.i.toFixed(4)}</div>
-                      <div>Q: {hoverInfo.q.toFixed(4)}</div>
-                      <div>IDX: {hoverInfo.index}</div>
-                    </div>
-                  )}
-                  <div className="absolute bottom-4 right-4 z-10 bg-[#0A0A0A] border border-[#222] p-3 flex flex-col space-y-2 font-mono text-[10px] text-gray-400 shadow-2xl pointer-events-none">
-                    <div className="flex items-center gap-2">
-                      <div className="bg-red-500 w-2 h-2"></div>
-                      <span>X-AXIS : IN-PHASE (I)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-green-500 w-2 h-2"></div>
-                      <span>Y-AXIS : QUADRATURE (Q)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-blue-500 w-2 h-2"></div>
-                      <span>Z-AXIS : TIME (t)</span>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <canvas
-                    ref={canvasRef}
-                    className="w-full h-full"
-                    onWheel={handleWheel}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseLeave}
-                    style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-                  />
-                  {cursor && cursorValues && (
-                    <div
-                      className="absolute bg-[#0A0A0A] border border-sigma-purple text-xs font-mono text-white px-3 py-2 rounded pointer-events-none z-10"
-                      style={{
-                        left: cursor.x + 10,
-                        top: cursor.y + 10
-                      }}
-                    >
-                      <div className="text-sigma-teal">I: {cursorValues.i.toFixed(4)}</div>
-                      <div className="text-sigma-purple">Q: {cursorValues.q.toFixed(4)}</div>
-                    </div>
-                  )}
-                  <div className="absolute bottom-4 left-4 bg-[#0A0A0A] border border-[#222] px-3 py-2 rounded z-10">
-                    <div className="text-xs font-mono text-gray-400">Zoom: {zoomLevel.toFixed(1)}x</div>
-                  </div>
-                </>
-              )}
+          <div className="border-t border-[#222] pt-3 mt-3 flex flex-col space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Total Points</span>
+              <span className="text-[#00E5FF] font-bold">{data.length}</span>
             </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Rendered</span>
+              <span className="text-[#00E5FF] font-bold">{displayData.length}</span>
+            </div>
+            {traceMode !== '3d_helix' && (
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Zoom</span>
+                <span className="text-[#00E5FF] font-bold">{zoomLevel.toFixed(1)}x</span>
+              </div>
+            )}
           </div>
         </div>
+
+        {traceMode === '3d_helix' && hoverInfo && (
+          <div
+            style={{
+              position: 'fixed',
+              top: hoverInfo.y + 15,
+              left: hoverInfo.x + 15,
+              pointerEvents: 'none',
+              zIndex: 9999
+            }}
+            className="bg-[#050505] border border-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.2)] p-2 font-mono text-[10px] text-gray-300 flex flex-col space-y-1 min-w-[120px]"
+          >
+            <div className="text-[#00E5FF] font-bold border-b border-[#222] pb-1 mb-1">DATA POINT</div>
+            <div>I: {hoverInfo.i.toFixed(4)}</div>
+            <div>Q: {hoverInfo.q.toFixed(4)}</div>
+            <div>IDX: {hoverInfo.index}</div>
+          </div>
+        )}
+
+        {traceMode !== '3d_helix' && cursor && cursorValues && (
+          <div
+            className="absolute bg-[#0A0A0A]/90 border border-[#00E5FF] text-xs font-mono text-white px-3 py-2 rounded pointer-events-none z-50 backdrop-blur-sm"
+            style={{
+              left: cursor.x + 10,
+              top: cursor.y + 10
+            }}
+          >
+            <div className="text-[#00E5FF]">I: {cursorValues.i.toFixed(4)}</div>
+            <div className="text-[#00FF66]">Q: {cursorValues.q.toFixed(4)}</div>
+          </div>
+        )}
+        
       </div>
     );
   }
