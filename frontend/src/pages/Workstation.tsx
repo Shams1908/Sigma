@@ -490,7 +490,7 @@ export default function Workstation() {
                   whileHover={{ scale: 1.05 }}
                   transition={{ duration: 0.2 }}
                 >
-                  SIGMA
+                  WaveSight
                 </motion.div>
                 
                 <div className="h-6 w-[1px] bg-[#222222]" />

@@ -149,14 +149,13 @@ export default function InfoPage() {
         >
           {/* Wordmark — same as navbar */}
           <span className="text-xl font-bold tracking-tighter bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
-            SIGMA
+            WaveSight
           </span>
 
           {/* Section quick-links — hidden on small screens */}
           <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-gray-400">
             {[
               ['About',    '#about'    ],
-              ['Problem',  '#problem'  ],
               ['Solution', '#solution' ],
               ['Use Cases','#use-cases'],
               ['Privacy',  '#privacy'  ],
@@ -179,7 +178,7 @@ export default function InfoPage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <span className="relative z-10">← Back to SIGMA</span>
+            <span className="relative z-10">← Back to WaveSight</span>
             <motion.div
               className="absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-600"
               initial={{ x: '100%' }}
@@ -203,9 +202,9 @@ export default function InfoPage() {
                 <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
                 <span className="text-purple-400 font-mono text-sm tracking-wider">ABOUT</span>
               </div>
-              <SectionHeading>About SIGMA</SectionHeading>
+              <SectionHeading>About WaveSight</SectionHeading>
               <p className="text-gray-300 text-lg leading-relaxed mb-8">
-                SIGMA (Signal Intelligence &amp; Guided Modulation Analysis) is an automated RF signal
+                WaveSight (Signal Intelligence &amp; Guided Modulation Analysis) is an automated RF signal
                 analysis platform designed to turn raw signal recordings into structured, testable signal
                 hypotheses.
               </p>
@@ -218,7 +217,7 @@ export default function InfoPage() {
               >
                 <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-[80px]" />
                 <div className="relative z-10">
-                  <h3 className="text-xl font-bold text-purple-400 mb-5">SIGMA is designed to:</h3>
+                  <h3 className="text-xl font-bold text-purple-400 mb-5">WaveSight is designed to:</h3>
                   <ul className="space-y-4">
                     {[
                       ['Analyze IQ/WAV signal recordings',           'Process raw captured RF data into a form the pipeline can act on.'],
@@ -249,41 +248,6 @@ export default function InfoPage() {
           </section>
 
           {/* ══════════════════════════════════════════════════════════════
-              B — PROBLEM STATEMENT
-          ══════════════════════════════════════════════════════════════ */}
-          <section id="problem">
-            <RevealSection>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                <span className="text-red-400 font-mono text-sm tracking-wider">PROBLEM STATEMENT</span>
-              </div>
-              <SectionHeading>The Problem</SectionHeading>
-              <p className="text-gray-300 text-lg leading-relaxed mb-10">
-                RF signal analysis can require repeated manual parameter tuning, interpretation of uncertain
-                observations, and trial-and-error testing of possible signal characteristics. An incorrect
-                assumption early in the analysis can propagate through later stages, making it difficult to
-                determine whether a final interpretation is actually correct.
-              </p>
-            </RevealSection>
-
-            <RevealSection delay={0.1}>
-              <h3 className="text-xl font-bold text-white mb-6">Core challenges</h3>
-            </RevealSection>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {[
-                { title: 'Limited obvious semantics',    body: 'Raw RF recordings contain limited explicit information. Meaningful parameters may need to be inferred from frequency and time-domain observations.',                                       accent: 'red'    },
-                { title: 'Parameter uncertainty',        body: 'Important signal characteristics such as sample rate, carrier offset and modulation type may not be directly observable and must be estimated.',                                            accent: 'red'    },
-                { title: 'Plausible but incorrect fits', body: 'Different interpretations can appear equally plausible without deeper testing. A modulation classification may look reasonable while still being incorrect.',                               accent: 'purple' },
-                { title: 'Manual experimentation cost',  body: 'Traditional workflows rely on analysts iterating through possible parameter combinations. This is time-consuming and the results are difficult to reproduce systematically.',               accent: 'purple' },
-                { title: 'Prediction without proof',     body: 'A model predicting a modulation type does not prove the prediction is correct. A classification score alone does not confirm whether the signal actually decodes consistently.', accent: 'blue'   },
-              ].map((c, i) => (
-                <InfoCard key={i} title={c.title} body={c.body} accent={c.accent as 'teal' | 'purple' | 'blue' | 'red'} delay={0.07 * i} />
-              ))}
-            </div>
-          </section>
-
-          {/* ══════════════════════════════════════════════════════════════
               C — PROBLEM & SOLUTION
           ══════════════════════════════════════════════════════════════ */}
           <section id="solution">
@@ -294,7 +258,7 @@ export default function InfoPage() {
               </div>
               <SectionHeading>From Signal Analysis to Validation</SectionHeading>
               <p className="text-gray-300 text-lg leading-relaxed mb-10">
-                SIGMA is designed around a structured, evidence-driven workflow rather than treating a
+                WaveSight is designed around a structured, evidence-driven workflow rather than treating a
                 predicted modulation classification as the final answer.
               </p>
             </RevealSection>
@@ -350,7 +314,7 @@ export default function InfoPage() {
                 <div className="relative z-10">
                   <div className="w-2 h-8 bg-teal-500 rounded mb-4" />
                   <p className="text-gray-200 text-lg leading-relaxed italic">
-                    "SIGMA moves from <span className="text-white font-semibold">'What might this signal be?'</span> toward{' '}
+                    "WaveSight moves from <span className="text-white font-semibold">'What might this signal be?'</span> toward{' '}
                     <span className="text-teal-400 font-semibold">'Does this hypothesis remain consistent when tested through the signal-processing chain?'</span>"
                   </p>
                 </div>
@@ -367,7 +331,7 @@ export default function InfoPage() {
                 <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
                 <span className="text-purple-400 font-mono text-sm tracking-wider">USE CASES</span>
               </div>
-              <SectionHeading>Where SIGMA Can Be Useful</SectionHeading>
+              <SectionHeading>Where WaveSight Can Be Useful</SectionHeading>
               <p className="text-gray-400 text-base leading-relaxed mb-10">
                 The following represent informational use cases that illustrate where a structured
                 RF analysis pipeline may be helpful. They are not claims of validated deployment.
@@ -421,7 +385,7 @@ export default function InfoPage() {
                 className="bg-blue-500/10 border border-blue-500/30 rounded-xl px-6 py-4 mb-10"
               >
                 <p className="text-blue-300 text-sm leading-relaxed">
-                  <strong className="text-blue-200">Prototype notice:</strong> SIGMA is provided as a
+                  <strong className="text-blue-200">Prototype notice:</strong> WaveSight is provided as a
                   research demonstration and prototype. Data handling, storage and retention depend on
                   the specific deployment configuration. This policy describes general practices for the
                   default prototype environment.
@@ -448,7 +412,7 @@ export default function InfoPage() {
                 },
                 {
                   title:   'Data Storage & Retention',
-                  body:    'This project is provided as a demonstration and prototype environment. The default configuration does not explicitly guarantee permanent deletion or indefinite retention of uploaded files. Users deploying SIGMA in a production environment are responsible for configuring appropriate data retention policies.',
+                  body:    'This project is provided as a demonstration and prototype environment. The default configuration does not explicitly guarantee permanent deletion or indefinite retention of uploaded files. Users deploying WaveSight in a production environment are responsible for configuring appropriate data retention policies.',
                   accent:  'purple',
                 },
                 {
@@ -458,7 +422,7 @@ export default function InfoPage() {
                 },
                 {
                   title:   'Security',
-                  body:    'As a prototype application, SIGMA does not implement production-grade authentication, authorization or encryption by default. This platform should not be used to process sensitive or classified signal data unless the deployment has been configured with appropriate security controls.',
+                  body:    'As a prototype application, WaveSight does not implement production-grade authentication, authorization or encryption by default. This platform should not be used to process sensitive or classified signal data unless the deployment has been configured with appropriate security controls.',
                   accent:  'red',
                 },
                 {
@@ -493,10 +457,10 @@ export default function InfoPage() {
           <RevealSection>
             <div className="border-t border-[#222222] pt-12 flex flex-col sm:flex-row items-center justify-between gap-4">
               <span className="text-xl font-bold tracking-tighter bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
-                SIGMA
+                WaveSight
               </span>
               <p className="text-gray-600 text-xs font-mono text-center sm:text-right">
-                © {new Date().getFullYear()} SIGMA Project. Prototype / research demonstration.
+                © {new Date().getFullYear()} WaveSight Project. Prototype / research demonstration.
               </p>
               <motion.button
                 onClick={() => navigate('/')}
