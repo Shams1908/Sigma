@@ -1,4 +1,7 @@
 import { useEffect, useRef, useMemo, useState, memo } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import * as THREE from 'three';
 
 interface ConstellationPoint {
   i: number;
@@ -10,9 +13,132 @@ interface ConstellationViewerProps {
 }
 
 const MAX_DISPLAY_POINTS = 2500;
+const MAX_3D_POINTS = 15000;
 
-type TraceMode = 'scatter' | 'density' | 'trajectory';
+type TraceMode = 'scatter' | 'density' | 'trajectory' | '3d_helix';
 type TargetModulation = 'none' | 'bpsk' | 'qpsk' | '16qam' | '64qam';
+
+const Constellation3D = memo(({ iqData, showUnitCircle, onHover, onHoverEnd }: { 
+  iqData: ConstellationPoint[]; 
+  showUnitCircle: boolean;
+  onHover: (data: { x: number; y: number; i: number; q: number; index: number }) => void;
+  onHoverEnd: () => void;
+}) => {
+  const { positions, pointCount, timeDepth, safeData } = useMemo(() => {
+    const safe = iqData.length > 15000 ? iqData.slice(-15000) : iqData;
+    const count = safe.length;
+    const posArray = new Float32Array(count * 3);
+    const timeScale = count > 0 ? 10 / count : 0.001;
+    const depth = count * timeScale;
+
+    for (let i = 0; i < count; i++) {
+      posArray[i * 3] = safe[i].i;
+      posArray[i * 3 + 1] = safe[i].q;
+      posArray[i * 3 + 2] = -(i * timeScale);
+    }
+
+    return { positions: posArray, pointCount: count, timeDepth: depth, safeData: safe };
+  }, [iqData]);
+
+  const geometryRef = useRef<THREE.BufferGeometry>(null);
+  const lastHoveredIndexRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (geometryRef.current) {
+      geometryRef.current.attributes.position.needsUpdate = true;
+      geometryRef.current.computeBoundingSphere();
+      geometryRef.current.computeBoundingBox();
+    }
+  }, [positions]);
+
+  const handlePointerMove = (e: any) => {
+    e.stopPropagation();
+    
+    if (e.index === undefined || e.index >= safeData.length) return;
+    
+    if (lastHoveredIndexRef.current === e.index) return;
+    
+    lastHoveredIndexRef.current = e.index;
+    
+    const realPoint = safeData[e.index];
+    
+    if (realPoint && realPoint.i !== undefined && realPoint.q !== undefined) {
+      onHover({
+        x: e.clientX,
+        y: e.clientY,
+        i: realPoint.i,
+        q: realPoint.q,
+        index: e.index
+      });
+    }
+  };
+
+  const handlePointerOut = (e: any) => {
+    e.stopPropagation();
+    lastHoveredIndexRef.current = null;
+    onHoverEnd();
+  };
+
+  return (
+    <>
+      <ambientLight intensity={0.5} />
+      <pointLight position={[10, 10, 10]} intensity={1} />
+      <axesHelper args={[2]} />
+      <line raycast={() => null}>
+        <bufferGeometry ref={geometryRef}>
+          <bufferAttribute
+            attach="attributes-position"
+            count={pointCount}
+            array={positions}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial
+          color="#00E5FF"
+          transparent={true}
+          opacity={0.5}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </line>
+      <points 
+        onPointerMove={handlePointerMove}
+        onPointerOut={handlePointerOut}
+      >
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={pointCount}
+            array={positions}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.05}
+          color="#00E5FF"
+          sizeAttenuation={true}
+          transparent={true}
+          opacity={1.0}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </points>
+      {showUnitCircle && (
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -timeDepth / 2]} raycast={() => null}>
+          <cylinderGeometry args={[1, 1, timeDepth, 32, 1, true]} />
+          <meshBasicMaterial
+            color="#8d5e50"
+            wireframe={true}
+            transparent={true}
+            opacity={0.6}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+      <OrbitControls dampingFactor={0.05} enableDamping makeDefault />
+    </>
+  );
+});
 
 const ConstellationViewer = memo(function ConstellationViewer({ data }: ConstellationViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -29,6 +155,7 @@ const ConstellationViewer = memo(function ConstellationViewer({ data }: Constell
   const [targetModulation, setTargetModulation] = useState<TargetModulation>('none');
   const [showUnitCircle, setShowUnitCircle] = useState(false);
   const [showEvmVectors, setShowEvmVectors] = useState(false);
+  const [hoverInfo, setHoverInfo] = useState<{ x: number; y: number; i: number; q: number; index: number } | null>(null);
 
   const displayData = useMemo(() => {
     if (data.length <= MAX_DISPLAY_POINTS) return data;
@@ -175,24 +302,29 @@ const ConstellationViewer = memo(function ConstellationViewer({ data }: Constell
     }
 
     if (traceMode === 'scatter') {
+      const basePointSize = 2;
+      const dynamicSize = Math.max(1.5, basePointSize * zoomLevel);
       ctx.fillStyle = 'rgba(20, 184, 166, 0.8)';
       displayData.forEach(point => {
         const x = scaleX(point.i);
         const y = scaleY(point.q);
-        ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+        ctx.fillRect(x - dynamicSize / 2, y - dynamicSize / 2, dynamicSize, dynamicSize);
       });
     } else if (traceMode === 'density') {
+      const basePointSize = 3;
+      const dynamicSize = Math.max(2, basePointSize * zoomLevel);
       ctx.globalAlpha = 0.08;
       ctx.fillStyle = '#ffffff';
       displayData.forEach(point => {
         const x = scaleX(point.i);
         const y = scaleY(point.q);
-        ctx.fillRect(x - 2, y - 2, 4, 4);
+        ctx.fillRect(x - dynamicSize / 2, y - dynamicSize / 2, dynamicSize, dynamicSize);
       });
       ctx.globalAlpha = 1.0;
     } else if (traceMode === 'trajectory') {
+      const dynamicLineWidth = Math.max(0.5, 0.5 * zoomLevel);
       ctx.strokeStyle = 'rgba(20, 184, 166, 0.4)';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = dynamicLineWidth;
       ctx.beginPath();
       displayData.forEach((point, i) => {
         const x = scaleX(point.i);
@@ -304,14 +436,15 @@ const ConstellationViewer = memo(function ConstellationViewer({ data }: Constell
       ctx.stroke();
     });
 
-    const pointRadius = 2.5;
+    const basePointSize = 2;
+    const dynamicPointRadius = Math.max(1.5, basePointSize * zoomLevel);
     ctx.fillStyle = 'rgba(20, 184, 166, 0.7)';
 
     displayData.forEach(point => {
       const x = scaleX(point.i);
       const y = scaleY(point.q);
       if (x >= margin && x <= w - margin && y >= margin && y <= h - margin) {
-        ctx.fillRect(x - pointRadius / 2, y - pointRadius / 2, pointRadius, pointRadius);
+        ctx.fillRect(x - dynamicPointRadius / 2, y - dynamicPointRadius / 2, dynamicPointRadius, dynamicPointRadius);
       }
     });
   };
@@ -461,6 +594,16 @@ const ConstellationViewer = memo(function ConstellationViewer({ data }: Constell
             >
               TRAJECTORY
             </button>
+            <button
+              onClick={() => setTraceMode('3d_helix')}
+              className={`px-3 py-1 border rounded transition-all ${
+                traceMode === '3d_helix'
+                  ? 'text-[#00E5FF] border-[#00E5FF] bg-[#00E5FF]/10 shadow-[0_0_8px_rgba(0,229,255,0.4)]'
+                  : 'border-[#222] text-gray-400 bg-[#0A0A0A] hover:border-[#00E5FF]/50'
+              }`}
+            >
+              3D HELIX
+            </button>
           </div>
           <button
             onClick={() => {
@@ -536,31 +679,80 @@ const ConstellationViewer = memo(function ConstellationViewer({ data }: Constell
 
           <div className="flex-1 flex bg-[#050505] relative items-center justify-center p-4">
             <div className="aspect-square h-full max-h-[85vh] border border-[#222] bg-[#0A0A0A] relative">
-              <canvas
-                ref={canvasRef}
-                className="w-full h-full"
-                onWheel={handleWheel}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseLeave}
-                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-              />
-              {cursor && cursorValues && (
-                <div
-                  className="absolute bg-[#0A0A0A] border border-sigma-purple text-xs font-mono text-white px-3 py-2 rounded pointer-events-none z-10"
-                  style={{
-                    left: cursor.x + 10,
-                    top: cursor.y + 10
-                  }}
-                >
-                  <div className="text-sigma-teal">I: {cursorValues.i.toFixed(4)}</div>
-                  <div className="text-sigma-purple">Q: {cursorValues.q.toFixed(4)}</div>
-                </div>
+              {traceMode === '3d_helix' ? (
+                <>
+                  <Canvas
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+                    camera={{ position: [5, 5, 10], fov: 45 }}
+                  >
+                    <Constellation3D 
+                      iqData={data} 
+                      showUnitCircle={showUnitCircle}
+                      onHover={setHoverInfo}
+                      onHoverEnd={() => setHoverInfo(null)}
+                    />
+                  </Canvas>
+                  {hoverInfo && (
+                    <div
+                      style={{
+                        position: 'fixed',
+                        top: hoverInfo.y + 15,
+                        left: hoverInfo.x + 15,
+                        pointerEvents: 'none',
+                        zIndex: 9999
+                      }}
+                      className="bg-[#050505] border border-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.2)] p-2 font-mono text-[10px] text-gray-300 flex flex-col space-y-1 min-w-[120px]"
+                    >
+                      <div className="text-[#00E5FF] font-bold border-b border-[#222] pb-1 mb-1">DATA POINT</div>
+                      <div>I: {hoverInfo.i.toFixed(4)}</div>
+                      <div>Q: {hoverInfo.q.toFixed(4)}</div>
+                      <div>IDX: {hoverInfo.index}</div>
+                    </div>
+                  )}
+                  <div className="absolute bottom-4 right-4 z-10 bg-[#0A0A0A] border border-[#222] p-3 flex flex-col space-y-2 font-mono text-[10px] text-gray-400 shadow-2xl pointer-events-none">
+                    <div className="flex items-center gap-2">
+                      <div className="bg-red-500 w-2 h-2"></div>
+                      <span>X-AXIS : IN-PHASE (I)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="bg-green-500 w-2 h-2"></div>
+                      <span>Y-AXIS : QUADRATURE (Q)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="bg-blue-500 w-2 h-2"></div>
+                      <span>Z-AXIS : TIME (t)</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full h-full"
+                    onWheel={handleWheel}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
+                    style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                  />
+                  {cursor && cursorValues && (
+                    <div
+                      className="absolute bg-[#0A0A0A] border border-sigma-purple text-xs font-mono text-white px-3 py-2 rounded pointer-events-none z-10"
+                      style={{
+                        left: cursor.x + 10,
+                        top: cursor.y + 10
+                      }}
+                    >
+                      <div className="text-sigma-teal">I: {cursorValues.i.toFixed(4)}</div>
+                      <div className="text-sigma-purple">Q: {cursorValues.q.toFixed(4)}</div>
+                    </div>
+                  )}
+                  <div className="absolute bottom-4 left-4 bg-[#0A0A0A] border border-[#222] px-3 py-2 rounded z-10">
+                    <div className="text-xs font-mono text-gray-400">Zoom: {zoomLevel.toFixed(1)}x</div>
+                  </div>
+                </>
               )}
-              <div className="absolute bottom-4 left-4 bg-[#0A0A0A] border border-[#222] px-3 py-2 rounded z-10">
-                <div className="text-xs font-mono text-gray-400">Zoom: {zoomLevel.toFixed(1)}x</div>
-              </div>
             </div>
           </div>
         </div>
