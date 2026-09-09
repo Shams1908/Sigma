@@ -53,6 +53,7 @@ class EvidenceTrace:
       - timing: Timing/synchronization quality
       - fec: FEC validation
       - bitstream: Bitstream correlation
+      - interleaver: Interleaver provenance and stage status (weight 0.0)
     """
     ml: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
     symbol_rate: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
@@ -61,6 +62,7 @@ class EvidenceTrace:
     timing: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
     fec: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
     bitstream: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
+    interleaver: EvidenceComponent = field(default_factory=lambda: EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED))
 
     @property
     def mlModulation(self) -> EvidenceComponent:
@@ -89,6 +91,7 @@ class EvidenceTrace:
             "timing": self.timing.to_dict(),
             "fec": self.fec.to_dict(),
             "bitstream": self.bitstream.to_dict(),
+            "interleaver": self.interleaver.to_dict(),
         }
 
 

@@ -899,6 +899,29 @@ def decoder_result_to_evidence_trace(
         if base_trace is None or base_trace.bitstream.status == EvidenceStatus.NOT_EVALUATED:
             trace.bitstream = EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED)
 
+    # 5. Interleaver evidence from interleaver result (provenance-only, weight 0.0 in P5.5)
+    intl = result.interleaver
+    if intl.status == DecoderStageStatus.SUCCESS:
+        trace.interleaver = EvidenceComponent(
+            status=EvidenceStatus.AVAILABLE,
+            score=None,
+            details=intl.details or intl.metrics or {"success": True},
+        )
+    elif intl.status == DecoderStageStatus.FAILED:
+        trace.interleaver = EvidenceComponent(
+            status=EvidenceStatus.FAILED,
+            score=0.0,
+            details=intl.details or intl.metrics or ({"failure_reason": intl.failure_reason} if intl.failure_reason else None),
+        )
+    elif intl.status == DecoderStageStatus.NOT_SUPPORTED:
+        trace.interleaver = EvidenceComponent(
+            status=EvidenceStatus.NOT_SUPPORTED,
+            details={"failure_reason": intl.failure_reason} if intl.failure_reason else None,
+        )
+    elif intl.status == DecoderStageStatus.NOT_EVALUATED:
+        if base_trace is None or getattr(base_trace, "interleaver", None) is None or base_trace.interleaver.status == EvidenceStatus.NOT_EVALUATED:
+            trace.interleaver = EvidenceComponent(status=EvidenceStatus.NOT_EVALUATED)
+
     return trace
 
 

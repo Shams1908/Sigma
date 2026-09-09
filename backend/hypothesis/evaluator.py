@@ -54,6 +54,7 @@ def calculate_raw_score(
     evidence = candidate.evidence
     w_sym = getattr(config, "weight_symbol_rate", 0.20)
     w_snr = getattr(config, "weight_snr", 0.10)
+    w_intl = getattr(config, "weight_interleaver", 0.0)
     dimension_map = [
         (evidence.ml, config.weight_ml, "ml"),
         (evidence.symbol_rate, w_sym, "symbol_rate"),
@@ -62,12 +63,15 @@ def calculate_raw_score(
         (evidence.timing, config.weight_timing, "timing"),
         (evidence.fec, config.weight_fec, "fec"),
         (evidence.bitstream, config.weight_bitstream, "bitstream"),
+        (getattr(evidence, "interleaver", None), w_intl, "interleaver"),
     ]
 
     weighted_sum = 0.0
     active_weight_sum = 0.0
 
     for comp, weight, dim_name in dimension_map:
+        if comp is None:
+            continue
         if comp.status == EvidenceStatus.AVAILABLE and comp.score is not None:
             # Clamp available score to [0.0, 1.0] for safety
             clamped_score = max(0.0, min(1.0, float(comp.score)))
@@ -192,6 +196,17 @@ def create_bitstream_evidence(
     details: Optional[Dict[str, Any]] = None,
 ) -> EvidenceComponent:
     """Creates EvidenceComponent for bitstream correlation."""
+    if status == EvidenceStatus.AVAILABLE and score is not None:
+        return EvidenceComponent(status=status, score=float(score), details=details)
+    return EvidenceComponent(status=status, details=details)
+
+
+def create_interleaver_evidence(
+    score: Optional[float] = None,
+    status: EvidenceStatus = EvidenceStatus.NOT_EVALUATED,
+    details: Optional[Dict[str, Any]] = None,
+) -> EvidenceComponent:
+    """Creates EvidenceComponent for interleaver provenance (weight 0.0 in P5.5)."""
     if status == EvidenceStatus.AVAILABLE and score is not None:
         return EvidenceComponent(status=status, score=float(score), details=details)
     return EvidenceComponent(status=status, details=details)

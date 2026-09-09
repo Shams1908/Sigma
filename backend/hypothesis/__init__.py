@@ -15,6 +15,7 @@ from backend.hypothesis.evaluator import (
     create_timing_evidence,
     create_fec_evidence,
     create_bitstream_evidence,
+    create_interleaver_evidence,
 )
 from backend.hypothesis.ranking import (
     deduplicate_candidates,
@@ -50,6 +51,20 @@ from backend.hypothesis.decoder_contracts import (
     decoder_result_to_evidence_trace,
     update_hypothesis_from_decoder_result,
 )
+from backend.hypothesis.decoder_chain import (
+    DecoderStage,
+    SynchronizationAdapter,
+    DemodulationAdapter,
+    InterleaverAdapter,
+    FECAdapter,
+    ValidationAdapter,
+    DecoderChain,
+)
+from backend.hypothesis.engine import (
+    HypothesisEngine,
+    HypothesisEngineResult,
+)
+
 
 __all__ = [
     "EvidenceStatus",
@@ -62,6 +77,7 @@ __all__ = [
     "create_timing_evidence",
     "create_fec_evidence",
     "create_bitstream_evidence",
+    "create_interleaver_evidence",
     "deduplicate_candidates",
     "normalize_confidences",
     "rank_hypotheses",
@@ -89,5 +105,15 @@ __all__ = [
     "ScaffoldDecoderEngine",
     "decoder_result_to_evidence_trace",
     "update_hypothesis_from_decoder_result",
+    "DecoderStage",
+    "SynchronizationAdapter",
+    "DemodulationAdapter",
+    "InterleaverAdapter",
+    "FECAdapter",
+    "ValidationAdapter",
+    "DecoderChain",
+    "HypothesisEngine",
+    "HypothesisEngineResult",
 ]
+
 

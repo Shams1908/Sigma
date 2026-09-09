@@ -14,6 +14,7 @@ class HypothesisScoringSettings(BaseModel):
     weight_timing: float = Field(default=0.10, description="Weight w5 for timing/synchronization quality")
     weight_fec: float = Field(default=0.10, description="Weight w6 for FEC validation")
     weight_bitstream: float = Field(default=0.05, description="Weight w7 for bitstream correlation")
+    weight_interleaver: float = Field(default=0.0, description="Weight for interleaver provenance (strictly 0.0 in P5.5)")
     temperature: float = Field(default=0.25, gt=0.0, description="Softmax temperature for confidence normalization")
     confidence_tolerance: float = Field(default=1e-5, description="Numerical tolerance for confidence sum validation")
 
