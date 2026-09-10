@@ -19,12 +19,15 @@ export default function InteractiveSpectrum({ data }: InteractiveSpectrumProps) 
   const [isFocused, setIsFocused] = useState(false);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
+  // Create a stable key from data to detect actual data changes
+  const dataKey = data.length > 0 ? `${data.length}-${data[0]?.frequency}-${data[data.length-1]?.frequency}` : 'empty';
+  
   useEffect(() => {
-    if (!isFocused) {
-      setZoom(1);
-      setPan(0);
-    }
-  }, [data.length, isFocused]);
+    // Reset zoom and pan whenever data changes
+    setZoom(1);
+    setPan(0);
+    setCursor(null);
+  }, [dataKey]);
 
   useEffect(() => {
     if (!data.length || !canvasRef.current) return;
@@ -32,6 +35,9 @@ export default function InteractiveSpectrum({ data }: InteractiveSpectrumProps) 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    
+    // Clear any existing content
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();

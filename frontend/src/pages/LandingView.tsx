@@ -100,7 +100,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
             >
-              SIGMA
+              WaveSight
             </motion.div>
             
             {/* Nav Links */}
@@ -121,6 +121,20 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                   />
                 </motion.a>
               ))}
+              {/* About WaveSight — links to the existing /info page */}
+              <motion.a
+                href="/info#about"
+                className="hover:text-white transition-colors duration-300 relative group whitespace-nowrap"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                whileHover={{ y: -2 }}
+              >
+                About WaveSight
+                <motion.div
+                  className="absolute -bottom-1 left-0 w-0 h-[2px] bg-purple-500 group-hover:w-full transition-all duration-300"
+                />
+              </motion.a>
             </div>
             
             {/* Launch Button */}
@@ -166,14 +180,15 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
             >
               <div className="bg-[#0A0A0A] border border-purple-800/50 rounded-full px-6 py-2 inline-flex items-center gap-2">
                 <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                <span className="text-purple-400 font-mono text-sm tracking-wider">SIGMA</span>
+                <span className="text-purple-400 font-mono text-sm tracking-wider">WaveSight</span>
               </div>
             </motion.div>
 
             {/* Massive Headline with Gradient Clip */}
             <div className="text-center">
               <motion.h1
-                className="text-[5rem] md:text-[8rem] lg:text-[10rem] font-black leading-[0.85] tracking-tighter"
+                className="text-[3rem] md:text-[5rem] lg:text-[6rem] font-bold leading-[1.05] tracking-wide"
+                style={{ fontFamily: '"Orbitron", sans-serif', fontWeight: 700, letterSpacing: '0.03em' }}
                 initial={{ opacity: 0, y: 40 }}
                 animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
                 transition={{ duration: 0.8, delay: 0.5 }}
@@ -202,7 +217,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               transition={{ duration: 0.9, delay: 1.15, ease: 'easeOut' }}
               className="text-center text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed"
             >
-              From raw RF data to validated signal hypotheses, SIGMA structures
+              From raw RF data to validated signal hypotheses, WaveSight structures
               and automates the analysis path.
             </motion.p>
 
@@ -237,18 +252,6 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </motion.svg>
                 </span>
-              </motion.button>
-
-              {/* Secondary Button */}
-              <motion.button
-                className="px-10 py-4 bg-[#111111] text-white font-bold text-lg rounded-lg border border-[#333333] hover:border-purple-500 transition-all duration-300"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
-                }}
-              >
-                View Documentation
               </motion.button>
             </motion.div>
 
@@ -291,7 +294,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               </h2>
               <p className="text-center text-gray-400 text-lg max-w-2xl mx-auto">
                 RF analysis often depends on iterative parameter tuning and hypotheses
-                that are difficult to validate. SIGMA turns that process into a
+                that are difficult to validate. WaveSight turns that process into a
                 structured, evidence-driven pipeline.
               </p>
             </motion.div>
@@ -380,7 +383,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
                     />
-                    <h3 className="text-3xl font-bold text-teal-400">SIGMA Approach</h3>
+                    <h3 className="text-3xl font-bold text-teal-400">WaveSight Approach</h3>
                   </div>
 
                   <ul className="space-y-6">
@@ -438,7 +441,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               <p className="text-gray-300 leading-relaxed text-lg">
                 In RF signal analysis, parameters are interdependent. If you guess the wrong sample rate, 
                 your carrier frequency estimate will be off. If the carrier frequency is wrong, synchronization 
-                fails. If synchronization fails, demodulation produces garbage. SIGMA breaks this chain by 
+                fails. If synchronization fails, demodulation produces garbage. WaveSight breaks this chain by 
                 systematically testing hypotheses and validating each stage with physical signal processing, 
                 not just statistical confidence.
               </p>
@@ -631,7 +634,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                   Closed-Loop Signal<br />Hypothesis Validation
                 </h3>
                 <p className="text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
-                  SIGMA does not stop at predicting a modulation scheme. Candidate hypotheses
+                  WaveSight does not stop at predicting a modulation scheme. Candidate hypotheses
                   are carried through the signal-processing chain and tested against downstream
                   evidence before being considered validated.
                 </p>
@@ -647,7 +650,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                 },
                 {
                   title: 'Explainable Evidence',
-                  desc: 'Trace why a signal hypothesis was accepted or rejected through observable processing results. SIGMA connects the hypothesis to the evidence produced throughout the analysis chain instead of presenting an unexplained final prediction.',
+                  desc: 'Trace why a signal hypothesis was accepted or rejected through observable processing results. WaveSight connects the hypothesis to the evidence produced throughout the analysis chain instead of presenting an unexplained final prediction.',
                 },
                 {
                   title: 'Automation at Scale',
@@ -730,7 +733,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               {/* Brand */}
               <div className="flex-shrink-0">
                 <div className="text-xl font-bold tracking-tighter bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent mb-1">
-                  SIGMA
+                  WaveSight
                 </div>
                 <p className="text-gray-500 text-xs font-mono tracking-wide">
                   Signal Intelligence &amp; Guided Modulation Analysis
@@ -740,7 +743,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
               {/* Navigation links */}
               <nav className="flex flex-wrap gap-x-8 gap-y-3">
                 {[
-                  { label: 'About SIGMA',       href: '/info#about'     },
+                  { label: 'About WaveSight',     href: '/info#about'     },
                   { label: 'Problem Statement',  href: '/info#problem'   },
                   { label: 'Problem & Solution', href: '/info#solution'  },
                   { label: 'Use Cases',          href: '/info#use-cases' },
@@ -768,7 +771,7 @@ export default function LandingView({ onLaunch }: LandingViewProps) {
                 whileInView={{ opacity: 1 }}
                 transition={{ duration: 0.6 }}
               >
-                © {new Date().getFullYear()} SIGMA Project. Prototype / research demonstration.
+                © {new Date().getFullYear()} WaveSight Project. Prototype / research demonstration.
               </motion.p>
               <a
                 href="/info"

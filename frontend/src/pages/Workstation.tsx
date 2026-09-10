@@ -180,6 +180,20 @@ export default function Workstation() {
     setIsAnalyzing(true);
     setError(null);
     setAnalysisProgress(0);
+    
+    // Clear all previous data to ensure fresh state
+    setSpectrumData([]);
+    setWaterfallData([]);
+    setConstellationData([]);
+    setWaveformData(null);
+    setSignalParams(null);
+    setHypotheses([]);
+    setDiagnostics(null);
+    setBitstreamData(null);
+    setSignalRegions([]);
+    setDecoderCandidates([]);
+    setAnalysisId(null);
+    
     setProcessingStages([
       { name: 'Ingestion', status: 'running' },
       { name: 'DSP', status: 'pending', method: 'FFT/PSD' },
@@ -476,7 +490,7 @@ export default function Workstation() {
                   whileHover={{ scale: 1.05 }}
                   transition={{ duration: 0.2 }}
                 >
-                  SIGMA
+                  WaveSight
                 </motion.div>
                 
                 <div className="h-6 w-[1px] bg-[#222222]" />

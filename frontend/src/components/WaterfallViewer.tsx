@@ -110,6 +110,7 @@ export default function WaterfallViewer({ data, isLive = false }: WaterfallViewe
   useEffect(() => {
     if (!isLive || !canvasRef.current || !data.length) return;
 
+
     const animate = (timestamp: number) => {
       if (timestamp - lastUpdateRef.current < 150) {
         animationRef.current = requestAnimationFrame(animate);
