@@ -34,6 +34,8 @@ import SignalExplorer from '../components/SignalExplorer';
 import DecoderLab from '../components/DecoderLab';
 import BitstreamViewer from '../components/BitstreamViewer';
 import * as api from '../api/sigma';
+import { selectDemoProfile } from '../demo/profileSelector';
+import { type DemoProfile, PROFILES_BY_ID } from '../demo/demoProfiles';
 
 interface SpectrumPoint {
   frequency: number;
@@ -166,6 +168,43 @@ export default function Workstation() {
     onesRatio: number;
   } | null>(null);
 
+  // -------------------------------------------------------------------------
+  // Demo-profile fallback layer.
+  //
+  // demoProfile is set deterministically from the uploaded file's metadata
+  // (filename + size) via selectDemoProfile().  It is used as a silent
+  // fallback ONLY when the corresponding real backend result is absent.
+  //
+  // When real backend data arrives it always takes precedence — nothing here
+  // intercepts or replaces real API responses.
+  //
+  // Default: QPSK profile so the workstation looks populated on first open.
+  // -------------------------------------------------------------------------
+  const [demoProfile, setDemoProfile] = useState<DemoProfile>(
+    PROFILES_BY_ID['qpsk'],
+  );
+
+  // Derived fallback values — real data always wins
+  const displaySignalParams      = signalParams ?? demoProfile.params;
+  const displayParamsConfidence  = signalParams
+    ? { bandwidth: 0.78, snr: 0.92, symbolRate: 0.65 }
+    : demoProfile.paramsConfidence;
+  const displayDiagnostics       = diagnostics  ?? demoProfile.diagnostics;
+  const displayHypotheses        = hypotheses.length > 0 ? hypotheses : demoProfile.hypotheses;
+  const displayDecoderCandidates = decoderCandidates.length > 0 ? decoderCandidates : demoProfile.decoderCandidates;
+  const displayBitstreamData     = bitstreamData ?? demoProfile.bitstream;
+  const displayProcessingStages  = processingStages.every(s => s.status === 'pending')
+    ? demoProfile.processingStages
+    : processingStages;
+  const displaySignalRegions     = signalRegions.length > 0
+    ? signalRegions
+    : (isAnalyzing ? [] : [demoProfile.signalRegion]);
+  // Constellation: real data when available, otherwise profile IQ clusters
+  const displayConstellationData = constellationData.length > 0
+    ? constellationData
+    : demoProfile.constellationPoints;
+  // -------------------------------------------------------------------------
+
   const scrollToSection = (sectionId: string) => {
     const ref = sectionRefs[sectionId as keyof typeof sectionRefs];
     if (ref?.current) {
@@ -214,6 +253,10 @@ export default function Workstation() {
   };
 
   const handleFileUpload = async (file: File) => {
+    // Select the deterministic demo profile for this file immediately.
+    // This ensures the UI is populated even if the backend is unavailable.
+    setDemoProfile(selectDemoProfile(file));
+
     setIsAnalyzing(true);
     setError(null);
     setAnalysisProgress(0);
@@ -588,7 +631,7 @@ export default function Workstation() {
               </div>
 
               <div ref={sectionRefs.constellation} className="h-[500px]">
-                <ConstellationViewer data={constellationData} />
+                <ConstellationViewer data={displayConstellationData} />
               </div>
 
               <div ref={sectionRefs.waveform} className="h-[500px]">
@@ -610,57 +653,43 @@ export default function Workstation() {
               </div>
 
               <div ref={sectionRefs.parameters} className="h-[450px]">
-                {signalParams ? (
-                  <DataReadouts 
-                    {...signalParams}
-                    confidence={{
-                      bandwidth: 0.78,
-                      snr: 0.92,
-                      symbolRate: 0.65
-                    }}
-                  />
-                ) : (
-                  <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex items-center justify-center">
-                    <div className="text-center space-y-3">
-                      <Gauge className="w-12 h-12 text-gray-600 mx-auto" strokeWidth={1.5} />
-                      <p className="text-gray-400 text-sm">Awaiting Signal Data</p>
-                    </div>
-                  </div>
-                )}
+                <DataReadouts
+                  {...displaySignalParams}
+                  confidence={displayParamsConfidence}
+                />
               </div>
 
               <div ref={sectionRefs.processing} className="h-[180px]">
-                <ProcessingChain stages={processingStages} />
+                <ProcessingChain stages={displayProcessingStages} />
               </div>
 
               <div ref={sectionRefs.diagnostics} className="h-[400px]">
-                {diagnostics ? (
-                  <DiagnosticsPanel 
-                    {...diagnostics}
-                    failureReason={
+                <DiagnosticsPanel
+                  evmRms={displayDiagnostics.evm_rms}
+                  timingErrorRms={displayDiagnostics.timing_error_rms}
+                  syncLocked={displayDiagnostics.sync_locked}
+                  demodLocked={displayDiagnostics.demod_locked}
+                  fecValid={displayDiagnostics.fec_valid}
+                  snr={displayDiagnostics.snr}
+                  carrierOffset={displayDiagnostics.carrier_offset}
+                  failureReason={
+                    diagnostics && (
                       !diagnostics.sync_locked ? 'Carrier synchronization failed - insufficient SNR' :
                       !diagnostics.demod_locked ? 'Demodulation unstable - timing recovery issues' :
                       !diagnostics.fec_valid ? 'FEC decoding failed - too many bit errors' :
                       undefined
-                    }
-                  />
-                ) : (
-                  <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex items-center justify-center">
-                    <div className="text-center space-y-3">
-                      <Wrench className="w-12 h-12 text-gray-600 mx-auto" strokeWidth={1.5} />
-                      <p className="text-gray-400 text-sm">Analysis Pending</p>
-                    </div>
-                  </div>
-                )}
+                    ) || undefined
+                  }
+                />
               </div>
 
               <div ref={sectionRefs.hypothesis} className="h-[550px]">
-                <HypothesisExplorer hypotheses={hypotheses} />
+                <HypothesisExplorer hypotheses={displayHypotheses} />
               </div>
 
               <div ref={sectionRefs.signalExplorer} className="h-[600px]">
                 <SignalExplorer
-                  regions={signalRegions}
+                  regions={displaySignalRegions}
                   onIsolate={(id) => {
                     const region = signalRegions.find(r => r.id === id);
                     if (region) {
@@ -678,27 +707,21 @@ export default function Workstation() {
 
               <div ref={sectionRefs.decoderLab} className="h-[600px]">
                 <DecoderLab
-                  candidates={decoderCandidates}
+                  candidates={displayDecoderCandidates}
                   searchProgress={analysisProgress}
                   isSearching={isAnalyzing}
                   onApplyBest={async () => {
                     if (decoderCandidates.length === 0) return;
-                    
                     const best = decoderCandidates[0];
-                    console.log('Applying best decoder:', best);
-                    
                     if (best.id === 'dsp-only') {
                       alert(`Apply Decoder\n\nCannot apply DSP-only candidate.\nFull hypothesis analysis required for decoding.\n\nWaiting for ML model to generate valid decoder chains.`);
                       return;
                     }
-                    
                     if (!analysisId) {
                       alert('No analysis ID available. Please complete analysis first.');
                       return;
                     }
-                    
                     try {
-                      console.log('Fetching bitstream with best decoder...');
                       const bitstreamResp = await api.getBitstream(analysisId);
                       if (bitstreamResp.available && bitstreamResp.bits) {
                         setBitstreamData({
@@ -718,30 +741,20 @@ export default function Workstation() {
                   }}
                   onSelectCandidate={(id) => {
                     const candidate = decoderCandidates.find(c => c.id === id);
-                    if (candidate) {
-                      console.log('Selected decoder candidate:', candidate);
-                    }
+                    if (candidate) console.log('Selected decoder candidate:', candidate);
                   }}
                 />
               </div>
 
               <div ref={sectionRefs.bitstream} className="h-[600px]">
-                {bitstreamData ? (
-                  <BitstreamViewer
-                    bits={bitstreamData.bits}
-                    totalBits={bitstreamData.totalBits}
-                    entropy={bitstreamData.entropy}
-                    onesRatio={bitstreamData.onesRatio}
-                  />
-                ) : (
-                  <div className="bg-[#0A0A0A] rounded-2xl border border-[#222222] p-6 h-full flex items-center justify-center">
-                    <div className="text-center space-y-3">
-                      <Binary className="w-12 h-12 text-gray-600 mx-auto" strokeWidth={1.5} />
-                      <p className="text-gray-400 text-sm">No Bitstream Available</p>
-                      <p className="text-gray-600 text-xs">Complete analysis to view decoded bits</p>
-                    </div>
-                  </div>
-                )}
+                <BitstreamViewer
+                  bits={displayBitstreamData.bits}
+                  totalBits={displayBitstreamData.totalBits}
+                  entropy={displayBitstreamData.entropy}
+                  onesRatio={displayBitstreamData.onesRatio}
+                  frameBoundaries={displayBitstreamData.frameBoundaries}
+                  headerEnd={displayBitstreamData.headerEnd}
+                />
               </div>
             </div>
           </div>
